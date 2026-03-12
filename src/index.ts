@@ -20,7 +20,7 @@ export const app = new App({
 });
 
 // app_mention handler
-app.event("app_mention", async ({ event, client, logger }: any) => {
+app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareArgs<'app_mention'>) => {
   try {
     const { text, ts, channel } = event;
 
