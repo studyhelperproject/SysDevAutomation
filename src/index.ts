@@ -1,7 +1,6 @@
 import { GeminiEngine } from "./gemini.js";
 import { GitHubClient } from "./github.js";
-import pkg from "@slack/bolt";
-const { App } = pkg;
+import { App, SlackEventMiddlewareArgs, SlackMessageMiddlewareArgs } from "@slack/bolt";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 
