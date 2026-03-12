@@ -1,0 +1,27 @@
+{
+  "name": "SysDevAutomation",
+  "version": "1.0.0",
+  "description": "「人の介入を最小限にし、機械的に要件を詰める」ための、AIによる要件定義・プロジェクト管理自動化システムです。",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/studyhelperproject/SysDevAutomation.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/studyhelperproject/SysDevAutomation/issues"
+  },
+  "homepage": "https://github.com/studyhelperproject/SysDevAutomation#readme",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@slack/bolt": "^4.6.0",
+    "dotenv": "^17.3.1",
+    "octokit": "^5.0.5"
+  }
+}
