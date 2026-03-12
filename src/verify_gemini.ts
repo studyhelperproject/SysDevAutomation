@@ -1,4 +1,4 @@
-import { GeminiEngine } from "./gemini";
+import { GeminiEngine } from "./gemini.js";
 import * as dotenv from "dotenv";
 
 dotenv.config();
