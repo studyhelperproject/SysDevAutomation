@@ -1,14 +1,15 @@
 {
   "name": "app",
   "version": "1.0.0",
-  "description": "「人の介入を最小限にし、機械的に要件を詰める」ための、AIによる要件定義・プロジェクト管理自動化システムです。",
-  "main": "src/app.js",
+  "description": "「人の介入を最小限にし、機械的に要件を詰める」ための、AIによる要定義・プロジェクト管理自動化システムです。",
+  "type": "module",
+  "main": "src/index.ts",
   "directories": {
     "doc": "docs"
   },
   "scripts": {
-    "start": "node src/app.js",
-    "test": "node tests/test_slack_integration.js"
+    "start": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node src/index.ts",
+    "test": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node tests/test_slack_integration.ts"
   },
   "repository": {
     "type": "git",
@@ -22,16 +23,14 @@
   },
   "homepage": "https://github.com/studyhelperproject/SysDevAutomation#readme",
   "dependencies": {
-    "@slack/bolt": "^4.6.0",
-    "dotenv": "^17.3.1"
     "@google/generative-ai": "^0.24.1",
     "@slack/bolt": "^4.6.0",
     "dotenv": "^17.3.1",
     "octokit": "^5.0.5"
   },
   "devDependencies": {
-    "@types/node": "^25.4.0",
+    "@types/node": "^22.13.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.7.3"
   }
 }
