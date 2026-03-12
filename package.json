@@ -1,0 +1,29 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "description": "「人の介入を最小限にし、機械的に要件を詰める」ための、AIによる要件定義・プロジェクト管理自動化システムです。",
+  "main": "src/app.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "start": "node src/app.js",
+    "test": "node tests/test_slack_integration.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/studyhelperproject/SysDevAutomation.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/studyhelperproject/SysDevAutomation/issues"
+  },
+  "homepage": "https://github.com/studyhelperproject/SysDevAutomation#readme",
+  "dependencies": {
+    "@slack/bolt": "^4.6.0",
+    "dotenv": "^16.4.7"
+  }
+}
