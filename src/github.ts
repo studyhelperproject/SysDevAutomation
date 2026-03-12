@@ -13,7 +13,7 @@ export class GitHubClient {
     this.repo = repo;
   }
 
-  async createIssue(result: GeminiAnalysisResult): Promise<any> {
+  async createIssue(result: GeminiAnalysisResult, slackLink?: string): Promise<any> {
     const labelMap: Record<string, string> = {
       "[Feature]": "[Feature]",
       "[Clarify]": "[Q]",
@@ -36,6 +36,10 @@ export class GitHubClient {
         body += `- ${info}\n`;
       });
       body += `\n`;
+    }
+
+    if (slackLink) {
+      body += `## Traceability\n- [Slack Message](${slackLink})\n\n`;
     }
 
     try {
