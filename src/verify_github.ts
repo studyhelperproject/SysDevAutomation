@@ -1,5 +1,5 @@
-import { GitHubClient } from "./github";
-import { GeminiAnalysisResult } from "./types";
+import { GitHubClient } from "./github.js";
+import { GeminiAnalysisResult } from "./types.js";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -38,7 +38,8 @@ async function verify() {
   for (const testCase of testCases) {
     console.log(`--- Creating Issue for: ${testCase.title} ---`);
     try {
-      const issue = await client.createIssue(testCase);
+      const mockSlackLink = "https://slack.com/archives/C12345/p123456789";
+      const issue = await client.createIssue(testCase, mockSlackLink);
       console.log(`Issue created successfully: ${issue.html_url}`);
     } catch (error) {
       console.error("Error creating issue:", error);
@@ -90,6 +91,11 @@ function mockVerify() {
         body += `- ${info}\n`;
       });
       body += `\n`;
+    }
+
+    const mockSlackLink = "https://slack.com/archives/C12345/p123456789";
+    if (mockSlackLink) {
+      body += `## Traceability\n- [Slack Message](${mockSlackLink})\n\n`;
     }
 
     console.log("Title:", `${testCase.category} ${testCase.title}`);
