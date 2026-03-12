@@ -40,7 +40,7 @@ Slackをフロントエンド、Geminiをバックエンドロジック、GitHub
 
 *   **Front**: Slack (お客様からの要望・連絡)
 *   **Bridge**: Slack Bolt (Node.js) / Cloud Functions
-*   **Brain**: Gemini 1.5 Pro (API)
+*   **Brain**: Gemini 2.5 Pro (API)
 *   **Back**: GitHub API (Issues, Projects)
 *   **Dev Env**: Google Jules (GitHub上のIssueを元に開発)
 
