@@ -1,0 +1,76 @@
+GeminiがSlackの入力を解析し、GitHub API（Issues API等）へ渡すための、構造化されたJSONフォーマットを定義します。
+
+このフォーマットは、後続のプログラム（Cloud FunctionsやNode.js等）が「GitHubにIssueを作るべきか」「Slackで聞き返すべきか」を即座に判断でき、かつGitHub APIが求めるフィールド（title, body, labels等）をそのまま内包するように設計しています。
+
+1. 共通JSONスキーマ定義
+Geminiには常に以下の形式で出力するよう指示します。
+
+JSON
+{
+  "action_type": "CREATE_ISSUE | SLACK_REPLY | UPDATE_ESTIMATE",
+  "reasoning": "なぜこのアクションを選択したかの理由（デバッグ用）",
+  "github_payload": {
+    "title": "Issueのタイトル（簡潔かつ具体的）",
+    "body": "Markdown形式の本文（受入基準、背景、Slackリンク等）",
+    "labels": ["Priority: P0", "Type: Feature", "Status: MVP"],
+    "assignees": []
+  },
+  "slack_payload": {
+    "text": "お客様への返信文（逆質問や確認事項）"
+  },
+  "metadata": {
+    "is_mvp": true,
+    "confidence_score": 0.95,
+    "required_data": ["画像素材", "APIキー"]
+  }
+}
+2. 具体的な出力例
+ケースA：要件が明確な場合（Issue起票）
+入力例： 「ログイン画面にGoogle連携ボタンを追加して。MVPに必須です。」
+
+JSON
+{
+  "action_type": "CREATE_ISSUE",
+  "reasoning": "顧客から明確な機能追加の指示があり、MVPへの組み込みも指定されたため。",
+  "github_payload": {
+    "title": "Google認証連携機能の実装",
+    "body": "## 概要\nログイン画面にGoogle連携ボタンを追加する。\n\n## 受入基準 (Acceptance Criteria)\n- **Given**: 未ログインユーザーがログイン画面を表示している\n- **When**: 'Googleでログイン'ボタンをクリックする\n- **Then**: Googleの認証画面に遷移し、承認後にトップ画面へ戻る\n\n## 優先度\n- MVP: Yes",
+    "labels": ["Feature", "MVP", "Priority: P0"]
+  },
+  "slack_payload": {
+    "text": "承知いたしました。Google認証連携の件、Issueを作成しました。実装を進めます。"
+  },
+  "metadata": {
+    "is_mvp": true,
+    "confidence_score": 0.98
+  }
+}
+ケースB：要件が曖昧な場合（逆質問）
+入力例： 「デザインをいい感じにしておいて。」
+
+JSON
+{
+  "action_type": "SLACK_REPLY",
+  "reasoning": "『いい感じに』という表現は主観的であり、具体的な修正箇所やターゲットが不明確なため。",
+  "github_payload": null,
+  "slack_payload": {
+    "text": "「デザインをいい感じにする」との点、承知いたしました。より具体的に進めるため、以下の点についてお教えいただけますでしょうか？\n1. 特に修正したい画面（トップページ、設定画面など）はありますか？\n2. 参考となるサイトや、重視したいイメージ（例：シンプル、高級感）はありますか？\n3. ロゴなどの素材に変更はありますか？"
+  },
+  "metadata": {
+    "is_mvp": false,
+    "confidence_score": 0.45
+  }
+}
+3. 実装上のポイント
+GitHub APIへの受け渡し:
+プログラム側で if (action_type === 'CREATE_ISSUE') の場合に、github_payload の中身をそのまま POST /repos/{owner}/{repo}/issues に投げます。
+
+ラベルの自動付与:
+Geminiに「MVP という単語が含まれていたら Status: MVP ラベルを、含まれていなければ Status: Backlog ラベルを付与せよ」とルール化することで、自動的に優先順位付けが完了します。
+
+プロンプトへの制約:
+Geminiへのシステム指示（System Instruction）の最後に、必ず以下の一文を加えてください。
+
+「回答は一切の説明を省き、純粋なJSONフォーマットのみを出力してください。Markdownのコードブロック（json ... ）で囲んでください。」
+
+このJSON構造をベースにすることで、AIが判断した結果をそのままシステムが実行できる「自律的なプロジェクト管理」の土台が完成します。
