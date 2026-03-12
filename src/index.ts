@@ -1,5 +1,5 @@
-import { GeminiEngine } from "./gemini";
-import { GitHubClient } from "./github";
+import { GeminiEngine } from "./gemini.js";
+import { GitHubClient } from "./github.js";
 import pkg from "@slack/bolt";
 const { App } = pkg;
 import * as dotenv from "dotenv";
@@ -24,12 +24,18 @@ app.event("app_mention", async ({ event, client, logger }) => {
   try {
     const { text, user, ts, channel } = event;
 
+    // Get Slack message link
+    const { permalink } = await client.chat.getPermalink({
+      channel,
+      message_ts: ts,
+    });
+
     // Analyze message with Gemini
     const result = await geminiEngine.analyzeMessage(text);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Create GitHub issue
-    const issue = await githubClient.createIssue(result);
+    const issue = await githubClient.createIssue(result, permalink);
     console.log("GitHub Issue Created:", issue.html_url);
 
     // Reply to Slack
@@ -54,12 +60,18 @@ app.message(async ({ message, client, logger }) => {
     // @ts-ignore
     const { text, user, ts, channel } = message;
 
+    // Get Slack message link
+    const { permalink } = await client.chat.getPermalink({
+      channel,
+      message_ts: ts,
+    });
+
     // Analyze message with Gemini
     const result = await geminiEngine.analyzeMessage(text);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Create GitHub issue
-    const issue = await githubClient.createIssue(result);
+    const issue = await githubClient.createIssue(result, permalink);
     console.log("GitHub Issue Created:", issue.html_url);
 
     // Reply to Slack
