@@ -50,7 +50,7 @@ app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareA
 });
 
 // message.im handler
-app.message(async ({ message, client, logger }: any) => {
+app.message(async ({ message, client, logger }: SlackMessageMiddlewareArgs) => {
   // Only handle messages in IMs
   if (message.channel_type !== "im") return;
   // Ignore bot messages
