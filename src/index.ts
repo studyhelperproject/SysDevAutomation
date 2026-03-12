@@ -1,18 +1,18 @@
 import { GeminiEngine } from "./gemini.js";
 import { GitHubClient } from "./github.js";
-import pkg from "@slack/bolt";
-const { App } = pkg;
+import { App, SlackEventMiddlewareArgs, SlackMessageMiddlewareArgs } from "@slack/bolt";
 import * as dotenv from "dotenv";
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
-const githubClient = new GitHubClient(
+export const githubClient = new GitHubClient(
   process.env.GITHUB_TOKEN || "",
   process.env.GITHUB_REPO || "studyhelperproject/SysDevAutomation"
 );
-const geminiEngine = new GeminiEngine(process.env.GEMINI_API_KEY || "");
+export const geminiEngine = new GeminiEngine(process.env.GEMINI_API_KEY || "");
 
-const app = new App({
+export const app = new App({
   token: process.env.SLACK_BOT_TOKEN || "xoxb-dummy",
   signingSecret: process.env.SLACK_SIGNING_SECRET || "dummy",
   socketMode: true,
@@ -20,9 +20,9 @@ const app = new App({
 });
 
 // app_mention handler
-app.event("app_mention", async ({ event, client, logger }) => {
+app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareArgs<'app_mention'>) => {
   try {
-    const { text, user, ts, channel } = event;
+    const { text, ts, channel } = event;
 
     // Get Slack message link
     const { permalink } = await client.chat.getPermalink({
@@ -50,15 +50,14 @@ app.event("app_mention", async ({ event, client, logger }) => {
 });
 
 // message.im handler
-app.message(async ({ message, client, logger }) => {
+app.message(async ({ message, client, logger }: SlackMessageMiddlewareArgs) => {
   // Only handle messages in IMs
   if (message.channel_type !== "im") return;
   // Ignore bot messages
   if ("bot_id" in message) return;
 
   try {
-    // @ts-ignore
-    const { text, user, ts, channel } = message;
+    const { text, ts, channel } = message;
 
     // Get Slack message link
     const { permalink } = await client.chat.getPermalink({
@@ -85,7 +84,7 @@ app.message(async ({ message, client, logger }) => {
   }
 });
 
-async function main() {
+export async function main() {
   if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is not set.");
     process.exit(1);
@@ -103,7 +102,6 @@ async function main() {
   }
 }
 
-import { fileURLToPath } from 'url';
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main();
 }
