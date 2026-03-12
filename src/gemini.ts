@@ -23,7 +23,9 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
 - [Out of Scope]: 今回のMVPには含めない（バックログ行き）項目。
 
 ■判定基準（判定ロジック）
-- 「適宜」「いい感じに」「お任せ」「検討中」といった曖昧な表現、または具体的な数値（秒、個数、色指定など）が欠けている場合は、強制的に is_ambiguous: true と判定し、category: [Clarify] を選択してください。
+- 「適宜」「いい感じに」「お任せ」「検討中」「必要に応じて」「適切に」「など」といった曖昧な表現、または具体的な数値（秒、個数、色指定など）が欠けている場合は、強制的に is_ambiguous: true と判定し、category: [Clarify] を選択してください。
+- 「ログイン機能を追加して」といった抽象的で範囲が広すぎる要望も、具体的な要件が特定できないため is_ambiguous: true とし、category: [Clarify] としてください。
+- [Feature] と判定するためには、その機能が「何を」「いつ」「どのように」するかが明確である必要があります（例：「Google OAuthを使用したログイン機能を追加し、ユーザー情報をDBに保存する」は [Feature]）。
 - [Feature] の場合、Acceptance Criteria（受入基準）を「Given/When/Then」形式で記述してください。
 
 ■出力フォーマット (JSON)
@@ -33,7 +35,7 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
   "description": "詳細な説明",
   "acceptance_criteria": "Given... When... Then... (Feature以外の場合は空文字列でも可)",
   "is_ambiguous": boolean,
-  "missing_info": ["具体的に何が足りないかのリスト"]
+  "missing_info": ["具体的に何が足りないかを解消するための、顧客への質問リスト"]
 }
 `,
     });

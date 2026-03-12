@@ -77,15 +77,20 @@ function mockVerify() {
       "[Out of Scope]": "[Out of Scope]",
     };
 
-    const label = labelMap[testCase.category] || testCase.category;
+    let category = testCase.category;
+    if (testCase.is_ambiguous || category === "[Clarify]") {
+      category = "[Clarify]";
+    }
+
+    const label = labelMap[category] || category;
 
     let body = `## Description\n${testCase.description}\n\n`;
 
-    if (testCase.category === "[Feature]" && testCase.acceptance_criteria) {
+    if (category === "[Feature]" && testCase.acceptance_criteria) {
       body += `## Acceptance Criteria\n${testCase.acceptance_criteria}\n\n`;
     }
 
-    if (testCase.is_ambiguous && testCase.missing_info.length > 0) {
+    if ((testCase.is_ambiguous || category === "[Clarify]") && testCase.missing_info.length > 0) {
       body += `## Missing Information\n`;
       testCase.missing_info.forEach((info) => {
         body += `- ${info}\n`;
@@ -98,7 +103,7 @@ function mockVerify() {
       body += `## Traceability\n- [Slack Message](${mockSlackLink})\n\n`;
     }
 
-    console.log("Title:", `${testCase.category} ${testCase.title}`);
+    console.log("Title:", `${category} ${testCase.title}`);
     console.log("Labels:", [label]);
     console.log("Body:\n", body);
     console.log("--- End of Mocked Issue ---\n");
