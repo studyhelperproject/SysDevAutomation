@@ -1,33 +1,42 @@
 import { GeminiEngine } from "./gemini";
+import { GitHubClient } from "./github";
 import pkg from "@slack/bolt";
 const { App } = pkg;
 import * as dotenv from "dotenv";
 
 dotenv.config();
 
+const githubClient = new GitHubClient(
+  process.env.GITHUB_TOKEN || "",
+  process.env.GITHUB_REPO || "studyhelperproject/SysDevAutomation"
+);
+const geminiEngine = new GeminiEngine(process.env.GEMINI_API_KEY || "");
+
 const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET,
+  token: process.env.SLACK_BOT_TOKEN || "xoxb-dummy",
+  signingSecret: process.env.SLACK_SIGNING_SECRET || "dummy",
   socketMode: true,
-  appToken: process.env.SLACK_APP_TOKEN,
+  appToken: process.env.SLACK_APP_TOKEN || "xapp-dummy",
 });
 
 // app_mention handler
 app.event("app_mention", async ({ event, client, logger }) => {
   try {
     const { text, user, ts, channel } = event;
-    const permalink = await client.chat.getPermalink({
-      channel,
-      message_ts: ts,
-    });
 
-    console.log("Received app_mention:");
-    console.log({
-      text,
-      user,
-      ts,
+    // Analyze message with Gemini
+    const result = await geminiEngine.analyzeMessage(text);
+    console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
+
+    // Create GitHub issue
+    const issue = await githubClient.createIssue(result);
+    console.log("GitHub Issue Created:", issue.html_url);
+
+    // Reply to Slack
+    await client.chat.postMessage({
       channel,
-      permalink: permalink.permalink,
+      thread_ts: ts,
+      text: `GitHub Issue created: ${issue.html_url}\nCategory: ${result.category}`,
     });
   } catch (error) {
     logger.error(error);
@@ -42,21 +51,22 @@ app.message(async ({ message, client, logger }) => {
   if ("bot_id" in message) return;
 
   try {
-    // message might be a generic message or a subtype, but for IMs we usually care about the basic fields
     // @ts-ignore
     const { text, user, ts, channel } = message;
-    const permalink = await client.chat.getPermalink({
-      channel,
-      message_ts: ts,
-    });
 
-    console.log("Received message.im:");
-    console.log({
-      text,
-      user,
-      ts,
+    // Analyze message with Gemini
+    const result = await geminiEngine.analyzeMessage(text);
+    console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
+
+    // Create GitHub issue
+    const issue = await githubClient.createIssue(result);
+    console.log("GitHub Issue Created:", issue.html_url);
+
+    // Reply to Slack
+    await client.chat.postMessage({
       channel,
-      permalink: permalink.permalink,
+      thread_ts: ts,
+      text: `GitHub Issue created: ${issue.html_url}\nCategory: ${result.category}`,
     });
   } catch (error) {
     logger.error(error);
@@ -64,27 +74,24 @@ app.message(async ({ message, client, logger }) => {
 });
 
 async function main() {
-  const apiKey = process.env.GEMINI_API_KEY || "";
-  if (!apiKey) {
+  if (!process.env.GEMINI_API_KEY) {
     console.error("GEMINI_API_KEY is not set.");
     process.exit(1);
   }
-  const engine = new GeminiEngine(apiKey);
+  if (!process.env.GITHUB_TOKEN) {
+    console.error("GITHUB_TOKEN is not set.");
+    process.exit(1);
+  }
 
-  const testMessage = "Add a login button to the home page. It should look nice.";
   try {
     await app.start();
     console.log("⚡️ Bolt app is running!");
-
-    // Keep the existing test logic for now, or remove if not needed.
-    // For this issue, we just need the app to start.
-    // const result = await engine.analyzeMessage(testMessage);
-    // console.log(JSON.stringify(result, null, 2));
   } catch (error) {
     console.error("Error starting app:", error);
   }
 }
 
-if (require.main === module) {
+import { fileURLToPath } from 'url';
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main();
 }
