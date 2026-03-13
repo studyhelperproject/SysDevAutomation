@@ -1,6 +1,7 @@
 import { GeminiEngine } from "./gemini.js";
 import { GitHubClient } from "./github.js";
 import { GeminiAnalysisResult } from "./types.js";
+import { storage } from "./storage.js";
 import { App } from "@slack/bolt";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
@@ -38,6 +39,35 @@ export function formatSlackReply(result: GeminiAnalysisResult, issueUrl: string)
   return message;
 }
 
+/**
+ * Gets or creates a GitHub client for a specific Slack channel.
+ */
+async function getGitHubClientForChannel(channelId: string, client: any): Promise<GitHubClient> {
+  let fullRepoName = storage.getRepo(channelId);
+  let isNew = false;
+
+  if (!fullRepoName) {
+    console.log(`No mapping found for channel ${channelId}. Creating new repository...`);
+    // Get channel info to use in repo name
+    const info = await client.conversations.info({ channel: channelId });
+    const channelName = info.ok ? info.channel.name : channelId;
+    // Repo name must be lowercase and only contain alphanumeric, underscores, and hyphens
+    const sanitizedName = channelName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    const repoName = `slack-${sanitizedName}-${channelId}`.toLowerCase();
+
+    fullRepoName = await githubClient.createRepository(repoName);
+    storage.setRepo(channelId, fullRepoName);
+    isNew = true;
+    console.log(`Created repository ${fullRepoName} for channel ${channelId}`);
+  }
+
+  const clientForChannel = new GitHubClient(process.env.GITHUB_TOKEN!, fullRepoName);
+  if (isNew) {
+    await clientForChannel.ensureLabelsExist();
+  }
+  return clientForChannel;
+}
+
 // app_mention handler
 app.event("app_mention", async ({ event, client, logger }: any) => {
   try {
@@ -49,15 +79,18 @@ app.event("app_mention", async ({ event, client, logger }: any) => {
       message_ts: ts,
     });
 
+    // Get channel-specific GitHub client
+    const channelGitHubClient = await getGitHubClientForChannel(channel, client);
+
     // Fetch project context from GitHub
-    const context = await githubClient.getProjectContext();
+    const context = await channelGitHubClient.getProjectContext();
 
     // Analyze message with Gemini
     const result = await geminiEngine.analyzeMessage(text, context);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Create GitHub issue
-    const issue = await githubClient.createIssue(result, permalink);
+    const issue = await channelGitHubClient.createIssue(result, permalink);
     console.log("GitHub Issue Created:", issue.html_url);
 
     // Reply to Slack
@@ -68,6 +101,11 @@ app.event("app_mention", async ({ event, client, logger }: any) => {
     });
   } catch (error) {
     logger.error(error);
+    await client.chat.postMessage({
+      channel,
+      thread_ts: event.ts,
+      text: `Error: Failed to process request. ${error instanceof Error ? error.message : String(error)}`,
+    });
   }
 });
 
@@ -87,15 +125,18 @@ app.message(async ({ message, client, logger }: any) => {
       message_ts: ts,
     });
 
+    // Get channel-specific GitHub client
+    const channelGitHubClient = await getGitHubClientForChannel(channel, client);
+
     // Fetch project context from GitHub
-    const context = await githubClient.getProjectContext();
+    const context = await channelGitHubClient.getProjectContext();
 
     // Analyze message with Gemini
     const result = await geminiEngine.analyzeMessage(text, context);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Create GitHub issue
-    const issue = await githubClient.createIssue(result, permalink);
+    const issue = await channelGitHubClient.createIssue(result, permalink);
     console.log("GitHub Issue Created:", issue.html_url);
 
     // Reply to Slack
@@ -106,6 +147,33 @@ app.message(async ({ message, client, logger }: any) => {
     });
   } catch (error) {
     logger.error(error);
+    await client.chat.postMessage({
+      channel,
+      thread_ts: message.ts,
+      text: `Error: Failed to process request. ${error instanceof Error ? error.message : String(error)}`,
+    });
+  }
+});
+
+// member_joined_channel handler (when bot is added to a channel)
+app.event("member_joined_channel", async ({ event, client, logger }: any) => {
+  try {
+    // Check if the joined member is this bot
+    const auth = await client.auth.test();
+    if (event.user !== auth.user_id) return;
+
+    const { channel } = event;
+    console.log(`Bot joined channel ${channel}. Initializing repository...`);
+
+    const channelGitHubClient = await getGitHubClientForChannel(channel, client);
+    const repoName = storage.getRepo(channel);
+
+    await client.chat.postMessage({
+      channel,
+      text: `Hello! I've been linked to this channel. I've created/linked a GitHub repository for this channel: https://github.com/${repoName}`,
+    });
+  } catch (error) {
+    logger.error("Error in member_joined_channel handler:", error);
   }
 });
 
