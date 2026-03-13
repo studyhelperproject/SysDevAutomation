@@ -61,4 +61,34 @@ export class GitHubClient {
       throw error;
     }
   }
+
+  async calculateTotalSP(): Promise<number> {
+    try {
+      const issues = await this.octokit.paginate(this.octokit.rest.issues.listForRepo, {
+        owner: this.owner,
+        repo: this.repo,
+        state: "open",
+      });
+
+      let totalSP = 0;
+      for (const issue of issues) {
+        // Skip pull requests
+        if (issue.pull_request) continue;
+
+        for (const label of issue.labels) {
+          const labelName = typeof label === "string" ? label : label.name;
+          if (labelName) {
+            const match = labelName.match(/^SP:\s*(\d+)$/i);
+            if (match) {
+              totalSP += parseInt(match[1], 10);
+            }
+          }
+        }
+      }
+      return totalSP;
+    } catch (error) {
+      console.error("Failed to calculate total SP:", error);
+      throw error;
+    }
+  }
 }
