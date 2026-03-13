@@ -1,5 +1,6 @@
 import { Octokit } from "octokit";
-import { GeminiAnalysisResult } from "./types";
+import { GeminiAnalysisResult } from "./types.js";
+import yaml from "js-yaml";
 
 export class GitHubClient {
   private octokit: Octokit;
@@ -47,18 +48,45 @@ export class GitHubClient {
       body += `## Traceability\n- [Slack Message](${slackLink})\n\n`;
     }
 
+    const labels = [label];
+    if (result.type) labels.push(`Type: ${result.type}`);
+    if (result.status) labels.push(`Status: ${result.status}`);
+    if (result.priority) labels.push(`Priority: ${result.priority}`);
+
     try {
       const response = await this.octokit.rest.issues.create({
         owner: this.owner,
         repo: this.repo,
         title: `${category} ${result.title}`,
         body,
-        labels: [label],
+        labels: labels,
       });
       return response.data;
     } catch (error) {
       console.error("Failed to create GitHub issue:", error);
       throw error;
+    }
+  }
+
+  async getProjectContext(): Promise<string> {
+    try {
+      const issues = await this.octokit.paginate(this.octokit.rest.issues.listForRepo, {
+        owner: this.owner,
+        repo: this.repo,
+        state: "open",
+      });
+
+      const snapshot = issues
+        .filter((issue) => !issue.pull_request)
+        .map((issue) => ({
+          title: issue.title,
+          labels: issue.labels.map((l: any) => (typeof l === "string" ? l : l.name)),
+        }));
+
+      return yaml.dump(snapshot, { indent: 2 });
+    } catch (error) {
+      console.error("Failed to fetch project context:", error);
+      return "";
     }
   }
 

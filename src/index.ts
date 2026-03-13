@@ -49,8 +49,11 @@ app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareA
       message_ts: ts,
     });
 
+    // Fetch project context from GitHub
+    const context = await githubClient.getProjectContext();
+
     // Analyze message with Gemini
-    const result = await geminiEngine.analyzeMessage(text);
+    const result = await geminiEngine.analyzeMessage(text, context);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Create GitHub issue
@@ -84,8 +87,11 @@ app.message(async ({ message, client, logger }: SlackMessageMiddlewareArgs) => {
       message_ts: ts,
     });
 
+    // Fetch project context from GitHub
+    const context = await githubClient.getProjectContext();
+
     // Analyze message with Gemini
-    const result = await geminiEngine.analyzeMessage(text);
+    const result = await geminiEngine.analyzeMessage(text, context);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Create GitHub issue
