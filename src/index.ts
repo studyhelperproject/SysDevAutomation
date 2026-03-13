@@ -1,7 +1,7 @@
 import { GeminiEngine } from "./gemini.js";
 import { GitHubClient } from "./github.js";
 import { GeminiAnalysisResult } from "./types.js";
-import { App, SlackEventMiddlewareArgs, SlackMessageMiddlewareArgs } from "@slack/bolt";
+import { App } from "@slack/bolt";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 
@@ -39,7 +39,7 @@ export function formatSlackReply(result: GeminiAnalysisResult, issueUrl: string)
 }
 
 // app_mention handler
-app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareArgs<'app_mention'>) => {
+app.event("app_mention", async ({ event, client, logger }: any) => {
   try {
     const { text, ts, channel } = event;
 
@@ -72,7 +72,7 @@ app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareA
 });
 
 // message.im handler
-app.message(async ({ message, client, logger }: SlackMessageMiddlewareArgs) => {
+app.message(async ({ message, client, logger }: any) => {
   // Only handle messages in IMs
   if (message.channel_type !== "im") return;
   // Ignore bot messages
@@ -110,12 +110,20 @@ app.message(async ({ message, client, logger }: SlackMessageMiddlewareArgs) => {
 });
 
 export async function main() {
-  if (!process.env.GEMINI_API_KEY) {
-    console.error("GEMINI_API_KEY is not set.");
-    process.exit(1);
-  }
-  if (!process.env.GITHUB_TOKEN) {
-    console.error("GITHUB_TOKEN is not set.");
+  const requiredEnvVars = [
+    "SLACK_BOT_TOKEN",
+    "SLACK_SIGNING_SECRET",
+    "SLACK_APP_TOKEN",
+    "GITHUB_TOKEN",
+    "GITHUB_REPO",
+    "GEMINI_API_KEY",
+  ];
+
+  const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
+
+  if (missingVars.length > 0) {
+    console.error(`Error: Missing required environment variables: ${missingVars.join(", ")}`);
+    console.error("Please check your .env file.");
     process.exit(1);
   }
 
