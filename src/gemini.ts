@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
-import { GeminiAnalysisResult } from "./types";
+import { GeminiAnalysisResult } from "./types.js";
 
 export class GeminiEngine {
   private genAI: GoogleGenerativeAI;
@@ -35,16 +35,26 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
   "description": "詳細な説明",
   "acceptance_criteria": "Given... When... Then... (Feature以外の場合は空文字列でも可)",
   "is_ambiguous": boolean,
-  "missing_info": ["具体的に何が足りないかを解消するための、顧客への質問リスト"]
+  "missing_info": ["具体的に何が足りないかを解消するための、顧客への質問リスト"],
+  "type": "Feature | Bug | Task (optional)",
+  "status": "MVP | Optional | Pending (optional)",
+  "priority": "P0 | P1 | P2 (optional)"
 }
+
+■コンテキストの活用
+過去のIssue状況（スナップショット）が提供された場合、重複する要望がないか確認し、関連性がある場合は説明に含めてください。
 `,
     });
   }
 
-  async analyzeMessage(message: string): Promise<GeminiAnalysisResult> {
+  async analyzeMessage(message: string, context?: string): Promise<GeminiAnalysisResult> {
+    const prompt = context
+      ? `以下のプロジェクト状況（YAML形式）を考慮して、ユーザーの入力を分析してください。\n\n[Project Context]\n${context}\n\n[User Input]\n${message}`
+      : message;
+
     const result = await this.model.generateContent({
       contents: [
-        { role: "user", parts: [{ text: message }] }
+        { role: "user", parts: [{ text: prompt }] }
       ],
       generationConfig: {
         responseMimeType: "application/json",

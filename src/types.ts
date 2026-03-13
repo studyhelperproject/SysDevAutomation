@@ -5,4 +5,7 @@ export interface GeminiAnalysisResult {
   acceptance_criteria: string;
   is_ambiguous: boolean;
   missing_info: string[];
+  type?: string;
+  status?: string;
+  priority?: string;
 }
