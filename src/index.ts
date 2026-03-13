@@ -8,10 +8,10 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 export const githubClient = new GitHubClient(
-  process.env.GITHUB_TOKEN || "",
+  process.env.GITHUB_TOKEN || "dummy",
   process.env.GITHUB_REPO || "studyhelperproject/SysDevAutomation"
 );
-export const geminiEngine = new GeminiEngine(process.env.GEMINI_API_KEY || "");
+export const geminiEngine = new GeminiEngine(process.env.GEMINI_API_KEY || "dummy");
 
 export const app = new App({
   token: process.env.SLACK_BOT_TOKEN || "xoxb-dummy",
