@@ -22,6 +22,7 @@
 
 現在、以下のコア機能が実装済みです：
 - [x] **Slack連携**: Socket Modeによるメンションおよびダイレクトメッセージ(IM)の取得。
+- [x] **GitHubリポジトリ自動作成**: Slackチャンネルごとに紐づけられたGitHubリポジトリを自動作成・管理。
 - [x] **Gemini 1.5 Pro連携**: システムプロンプトによる要件の構造化解析、Given-When-Then形式の受入基準生成。
 - [x] **GitHub Issue自動起票**: カテゴリに応じたラベル付与、Slackメッセージへのトレーサビリティリンク付与。
 - [x] **コンテキスト管理**: GitHub上の既存Issue（Snapshot）を読み込み、Geminiにコンテキストとして供給。
@@ -49,9 +50,13 @@
     - `chat:write`
     - `im:history`
     - `im:read`
+    - `channels:read`
+    - `groups:read`
+    - `channels:join`
 - **イベントの購読**: `Event Subscriptions` で以下を有効化。
     - `app_mention`
     - `message.im`
+    - `member_joined_channel`
 
 ### 3. Gemini (Google AI) の準備
 - **APIキーの取得**: [Google AI Studio](https://aistudio.google.com/) からGemini APIキーを取得。
