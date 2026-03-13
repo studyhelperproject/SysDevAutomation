@@ -9,7 +9,12 @@
   },
   "scripts": {
     "start": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node src/index.ts",
-    "test": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node tests/test_slack_integration.ts"
+    "test": "npm run test:slack && npm run test:github && npm run test:feedback && npm run test:sp",
+    "test:slack": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node tests/test_slack_integration.ts",
+    "test:github": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node tests/test_github_client.ts",
+    "test:feedback": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node tests/test_slack_feedback.ts",
+    "test:sp": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node tests/test_sp_aggregation.ts",
+    "aggregate-sp": "NODE_OPTIONS='--loader ts-node/esm --no-warnings' npx ts-node src/aggregate_sp.ts"
   },
   "repository": {
     "type": "git",
