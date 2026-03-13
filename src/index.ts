@@ -1,5 +1,6 @@
 import { GeminiEngine } from "./gemini.js";
 import { GitHubClient } from "./github.js";
+import { GeminiAnalysisResult } from "./types.js";
 import { App, SlackEventMiddlewareArgs, SlackMessageMiddlewareArgs } from "@slack/bolt";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
@@ -18,6 +19,24 @@ export const app = new App({
   socketMode: true,
   appToken: process.env.SLACK_APP_TOKEN || "xapp-dummy",
 });
+
+/**
+ * Formats the Slack reply message based on Gemini analysis.
+ */
+export function formatSlackReply(result: GeminiAnalysisResult, issueUrl: string): string {
+  let message = `GitHub Issue created: ${issueUrl}\nCategory: ${result.category}`;
+
+  const needsClarification = result.is_ambiguous || result.category === "[Clarify]" || result.category === "[Dependency]";
+
+  if (needsClarification && result.missing_info && result.missing_info.length > 0) {
+    message += `\n\n*Missing Information / Questions:*`;
+    result.missing_info.forEach(info => {
+      message += `\n- ${info}`;
+    });
+  }
+
+  return message;
+}
 
 // app_mention handler
 app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareArgs<'app_mention'>) => {
@@ -42,7 +61,7 @@ app.event("app_mention", async ({ event, client, logger }: SlackEventMiddlewareA
     await client.chat.postMessage({
       channel,
       thread_ts: ts,
-      text: `GitHub Issue created: ${issue.html_url}\nCategory: ${result.category}`,
+      text: formatSlackReply(result, issue.html_url),
     });
   } catch (error) {
     logger.error(error);
@@ -77,7 +96,7 @@ app.message(async ({ message, client, logger }: SlackMessageMiddlewareArgs) => {
     await client.chat.postMessage({
       channel,
       thread_ts: ts,
-      text: `GitHub Issue created: ${issue.html_url}\nCategory: ${result.category}`,
+      text: formatSlackReply(result, issue.html_url),
     });
   } catch (error) {
     logger.error(error);
