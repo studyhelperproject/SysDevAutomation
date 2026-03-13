@@ -22,15 +22,20 @@ export class GitHubClient {
       "[Out of Scope]": "[Out of Scope]",
     };
 
-    const label = labelMap[result.category] || result.category;
+    let category = result.category;
+    if (result.is_ambiguous || category === "[Clarify]") {
+      category = "[Clarify]";
+    }
+
+    const label = labelMap[category] || category;
 
     let body = `## Description\n${result.description}\n\n`;
 
-    if (result.category === "[Feature]" && result.acceptance_criteria) {
+    if (category === "[Feature]" && result.acceptance_criteria) {
       body += `## Acceptance Criteria\n${result.acceptance_criteria}\n\n`;
     }
 
-    if (result.is_ambiguous && result.missing_info.length > 0) {
+    if ((result.is_ambiguous || category === "[Clarify]") && result.missing_info.length > 0) {
       body += `## Missing Information\n`;
       result.missing_info.forEach((info) => {
         body += `- ${info}\n`;
@@ -46,7 +51,7 @@ export class GitHubClient {
       const response = await this.octokit.rest.issues.create({
         owner: this.owner,
         repo: this.repo,
-        title: `${result.category} ${result.title}`,
+        title: `${category} ${result.title}`,
         body,
         labels: [label],
       });
