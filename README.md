@@ -43,6 +43,8 @@
     - `Type: <Value>`, `Status: <Value>`, `Priority: <Value>`
 
 ### 2. Slackの準備
+詳細な手順は [Slack App セットアップ詳細手順](docs/slack_app_setup.md) を参照してください。
+
 - **Slack Appの作成**: [Slack API](https://api.slack.com/apps) から新規アプリを作成。
 - **Socket Mode の有効化**: `Settings > Socket Mode` をオンにします。
 - **権限 (Scopes) の設定**: `OAuth & Permissions` で以下の `Bot Token Scopes` を追加。
