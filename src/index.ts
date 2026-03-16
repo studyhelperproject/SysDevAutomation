@@ -2,7 +2,7 @@ import { GeminiEngine } from "./gemini.js";
 import { GitHubClient } from "./github.js";
 import { GeminiAnalysisResult } from "./types.js";
 import { storage } from "./storage.js";
-import { App } from "@slack/bolt";
+import { App, AppOptions } from "@slack/bolt";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
 
@@ -14,12 +14,24 @@ export const githubClient = new GitHubClient(
 );
 export const geminiEngine = new GeminiEngine(process.env.GEMINI_API_KEY || "dummy");
 
-export const app = new App({
+const socketMode = process.env.SLACK_SOCKET_MODE === "true";
+
+const appOptions: AppOptions = {
   token: process.env.SLACK_BOT_TOKEN || "xoxb-dummy",
   signingSecret: process.env.SLACK_SIGNING_SECRET || "dummy",
-  socketMode: true,
-  appToken: process.env.SLACK_APP_TOKEN || "xapp-dummy",
-});
+};
+
+if (socketMode) {
+  appOptions.socketMode = true;
+  appOptions.appToken = process.env.SLACK_APP_TOKEN || "xapp-dummy";
+  console.log("Starting in Socket Mode");
+} else {
+  appOptions.socketMode = false;
+  // HTTP Mode (for Cloud Run)
+  console.log("Starting in HTTP Mode");
+}
+
+export const app = new App(appOptions);
 
 /**
  * Formats the Slack reply message based on Gemini analysis.
@@ -43,7 +55,7 @@ export function formatSlackReply(result: GeminiAnalysisResult, issueUrl: string)
  * Gets or creates a GitHub client for a specific Slack channel.
  */
 async function getGitHubClientForChannel(channelId: string, client: any): Promise<GitHubClient> {
-  let fullRepoName = storage.getRepo(channelId);
+  let fullRepoName = await storage.getRepo(channelId);
   let isNew = false;
 
   if (!fullRepoName) {
@@ -56,7 +68,7 @@ async function getGitHubClientForChannel(channelId: string, client: any): Promis
     const repoName = `slack-${sanitizedName}-${channelId}`.toLowerCase();
 
     fullRepoName = await githubClient.createRepository(repoName);
-    storage.setRepo(channelId, fullRepoName);
+    await storage.setRepo(channelId, fullRepoName);
     isNew = true;
     console.log(`Created repository ${fullRepoName} for channel ${channelId}`);
   }
@@ -166,7 +178,7 @@ app.event("member_joined_channel", async ({ event, client, logger }: any) => {
     console.log(`Bot joined channel ${channel}. Initializing repository...`);
 
     const channelGitHubClient = await getGitHubClientForChannel(channel, client);
-    const repoName = storage.getRepo(channel);
+    const repoName = await storage.getRepo(channel);
 
     await client.chat.postMessage({
       channel,
@@ -181,11 +193,14 @@ export async function main() {
   const requiredEnvVars = [
     "SLACK_BOT_TOKEN",
     "SLACK_SIGNING_SECRET",
-    "SLACK_APP_TOKEN",
     "GITHUB_TOKEN",
     "GITHUB_REPO",
     "GEMINI_API_KEY",
   ];
+
+  if (socketMode) {
+    requiredEnvVars.push("SLACK_APP_TOKEN");
+  }
 
   const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
 
@@ -196,8 +211,9 @@ export async function main() {
   }
 
   try {
-    await app.start();
-    console.log("⚡️ Bolt app is running!");
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+    await app.start(port);
+    console.log(`⚡️ Bolt app is running on port ${port}!`);
   } catch (error) {
     console.error("Error starting app:", error);
   }

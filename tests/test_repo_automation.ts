@@ -1,23 +1,18 @@
-import { Storage } from "../src/storage.js";
+import { FileStorage } from "../src/storage.js";
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 
-// NOTE: We need to use a separate file for testing mapping to avoid polluting actual data
-// Since Storage uses a hardcoded MAPPING_FILE, we'll test the logic by instantiating it
-// and then manually checking if we can mock the file system if needed,
-// but for this environment, let's just test the class logic with a temporary override if possible.
-
 async function testRepoAutomation() {
   console.log("Running testRepoAutomation...");
 
-  const storage = new Storage();
-  const channelId = "TEST_CH_123";
+  const storage = new FileStorage();
+  const channelId = "TEST_CH_123_" + Date.now();
   const repoName = "owner/test-repo";
 
   // Test 1: setRepo and getRepo
-  storage.setRepo(channelId, repoName);
-  const retrieved = storage.getRepo(channelId);
+  await storage.setRepo(channelId, repoName);
+  const retrieved = await storage.getRepo(channelId);
 
   if (retrieved === repoName) {
     console.log("✅ Test 1 Passed: setRepo and getRepo work correctly.");
@@ -27,8 +22,8 @@ async function testRepoAutomation() {
   }
 
   // Test 2: persistence (simulated by re-instantiating)
-  const storage2 = new Storage();
-  const retrieved2 = storage2.getRepo(channelId);
+  const storage2 = new FileStorage();
+  const retrieved2 = await storage2.getRepo(channelId);
   if (retrieved2 === repoName) {
     console.log("✅ Test 2 Passed: Persistence works.");
   } else {

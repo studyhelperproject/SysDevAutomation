@@ -1,0 +1,12 @@
+node_modules
+data
+.env
+.git
+tests
+docs
+npm-debug.log
+.gitignore
+.dockerignore
+README.md
+AGENTS.md
+package-lock.json
