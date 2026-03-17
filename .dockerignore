@@ -3,7 +3,6 @@ data
 .env
 .git
 tests
-docs
 npm-debug.log
 .gitignore
 .dockerignore
