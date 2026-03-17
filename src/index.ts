@@ -114,7 +114,7 @@ app.event("app_mention", async ({ event, client, logger }: any) => {
   } catch (error) {
     logger.error(error);
     await client.chat.postMessage({
-      channel,
+      channel: event.channel,
       thread_ts: event.ts,
       text: `Error: Failed to process request. ${error instanceof Error ? error.message : String(error)}`,
     });
@@ -160,7 +160,7 @@ app.message(async ({ message, client, logger }: any) => {
   } catch (error) {
     logger.error(error);
     await client.chat.postMessage({
-      channel,
+      channel: message.channel,
       thread_ts: message.ts,
       text: `Error: Failed to process request. ${error instanceof Error ? error.message : String(error)}`,
     });

@@ -1,18 +1,31 @@
+# Stage 1: Build
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+# Stage 2: Run
 FROM node:22-slim
 
 WORKDIR /app
 
-# Install dependencies
+# Only copy production dependencies and built artifacts
 COPY package*.json ./
-RUN npm install
+RUN npm install --omit=dev
 
-# Copy source code
-COPY . .
+COPY --from=builder /app/dist ./dist
+# Copy other necessary runtime directories/files if any
+COPY prompts ./prompts
+COPY templates ./templates
+COPY docs ./docs
 
-# The app uses ts-node to run directly from source
 # Cloud Run will provide the PORT environment variable
 ENV PORT=8080
-
 EXPOSE 8080
 
 CMD ["npm", "start"]
