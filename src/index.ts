@@ -19,6 +19,47 @@ const socketMode = process.env.SLACK_SOCKET_MODE === "true";
 const appOptions: AppOptions = {
   token: process.env.SLACK_BOT_TOKEN || "xoxb-dummy",
   signingSecret: process.env.SLACK_SIGNING_SECRET || "dummy",
+  customRoutes: [
+    {
+      path: "/health",
+      method: ["GET"],
+      handler: (req, res) => {
+        res.writeHead(200);
+        res.end("OK");
+      },
+    },
+    {
+      path: "/",
+      method: ["POST"],
+      handler: (req, res) => {
+        let body = "";
+        req.on("data", (chunk) => {
+          body += chunk;
+        });
+        req.on("end", () => {
+          try {
+            const data = JSON.parse(body);
+            if (data.type === "url_verification") {
+              console.log("Handling Slack url_verification challenge at root path");
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ challenge: data.challenge }));
+              return;
+            }
+            // If it's not a challenge, it might be an actual Slack event.
+            // When using HTTP Mode, Bolt expects events at /slack/events by default.
+            // We log this to help users troubleshoot misconfigured Request URLs.
+            console.warn("Received POST request at root path that is not a url_verification challenge.");
+            console.warn("If this is a Slack event, please check your App settings and ensure the Request URL is set to <YOUR_URL>/slack/events");
+            res.writeHead(404);
+            res.end("Not Found. Slack events should be sent to /slack/events");
+          } catch (e) {
+            res.writeHead(400);
+            res.end("Bad Request");
+          }
+        });
+      },
+    },
+  ],
 };
 
 if (socketMode) {
@@ -241,10 +282,13 @@ export async function main() {
     "GEMINI_API_KEY",
   ];
 
-  const missingSlackVars = slackEnvVars.filter((v) => !process.env[v]);
+  const missingSlackVars = slackEnvVars.filter((v) => {
+    const val = process.env[v];
+    return !val || val === "dummy" || val === "xoxb-dummy" || val === "xapp-dummy";
+  });
   if (missingSlackVars.length > 0) {
-    console.error(`Error: Missing required Slack environment variables: ${missingSlackVars.join(", ")}`);
-    process.exit(1);
+    console.warn(`Warning: Missing or dummy Slack environment variables: ${missingSlackVars.join(", ")}`);
+    console.warn("The app will start but Slack features may not work correctly.");
   }
 
   const missingOtherVars = otherEnvVars.filter((v) => !process.env[v] || process.env[v] === "dummy");

@@ -67,6 +67,7 @@ gcloud run deploy $SERVICE_NAME \
 3.  **Event Subscriptions**:
     - `Enable Events` をオンにします。
     - `Request URL` に `https://<YOUR_CLOUD_RUN_URL>/slack/events` を入力し、`Verified` になることを確認します。
+  - **URL Verification の補足**: 本システムは、ルートパス (`/`) でも Slack の `url_verification` チャレンジに応答するように設計されています。もし `/slack/events` での検証がうまくいかない場合は、一時的に `https://<YOUR_CLOUD_RUN_URL>/` を Request URL として設定して検証を通し、その後正しいパスに戻すことができます。
 4.  **Interactivity & Shortcuts** (オプション):
     - インタラクティブ機能を使用する場合は、Request URL に `https://<YOUR_CLOUD_RUN_URL>/slack/events` を設定します。
 
