@@ -19,6 +19,7 @@ const socketMode = process.env.SLACK_SOCKET_MODE === "true";
 const appOptions: AppOptions = {
   token: process.env.SLACK_BOT_TOKEN || "xoxb-dummy",
   signingSecret: process.env.SLACK_SIGNING_SECRET || "dummy",
+  endpoints: ["/", "/slack/events"],
   customRoutes: [
     {
       path: "/health",
@@ -30,33 +31,10 @@ const appOptions: AppOptions = {
     },
     {
       path: "/",
-      method: ["POST"],
+      method: ["GET"],
       handler: (req, res) => {
-        let body = "";
-        req.on("data", (chunk) => {
-          body += chunk;
-        });
-        req.on("end", () => {
-          try {
-            const data = JSON.parse(body);
-            if (data.type === "url_verification") {
-              console.log("Handling Slack url_verification challenge at root path");
-              res.writeHead(200, { "Content-Type": "application/json" });
-              res.end(JSON.stringify({ challenge: data.challenge }));
-              return;
-            }
-            // If it's not a challenge, it might be an actual Slack event.
-            // When using HTTP Mode, Bolt expects events at /slack/events by default.
-            // We log this to help users troubleshoot misconfigured Request URLs.
-            console.warn("Received POST request at root path that is not a url_verification challenge.");
-            console.warn("If this is a Slack event, please check your App settings and ensure the Request URL is set to <YOUR_URL>/slack/events");
-            res.writeHead(404);
-            res.end("Not Found. Slack events should be sent to /slack/events");
-          } catch (e) {
-            res.writeHead(400);
-            res.end("Bad Request");
-          }
-        });
+        res.writeHead(200);
+        res.end("SysDevAutomation service is running. Slack events are accepted at / and /slack/events");
       },
     },
   ],
