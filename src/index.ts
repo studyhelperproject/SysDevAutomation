@@ -61,8 +61,15 @@ async function getGitHubClientForChannel(channelId: string, client: any): Promis
   if (!fullRepoName) {
     console.log(`No mapping found for channel ${channelId}. Creating new repository...`);
     // Get channel info to use in repo name
-    const info = await client.conversations.info({ channel: channelId });
-    const channelName = info.ok ? info.channel.name : channelId;
+    let channelName = channelId;
+    try {
+      const info = await client.conversations.info({ channel: channelId });
+      if (info.ok) {
+        channelName = info.channel.name;
+      }
+    } catch (error) {
+      console.warn(`Failed to fetch channel info for ${channelId}, using ID as name:`, error);
+    }
     // Repo name must be lowercase and only contain alphanumeric, underscores, and hyphens
     const sanitizedName = channelName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
     const repoName = `slack-${sanitizedName}-${channelId}`.toLowerCase();
@@ -86,10 +93,16 @@ app.event("app_mention", async ({ event, client, logger }: any) => {
     const { text, ts, channel } = event;
 
     // Get Slack message link
-    const { permalink } = await client.chat.getPermalink({
-      channel,
-      message_ts: ts,
-    });
+    let permalink = "";
+    try {
+      const result = await client.chat.getPermalink({
+        channel,
+        message_ts: ts,
+      });
+      permalink = result.permalink || "";
+    } catch (error) {
+      console.warn("Failed to fetch permalink:", error);
+    }
 
     // Get channel-specific GitHub client
     const channelGitHubClient = await getGitHubClientForChannel(channel, client);
@@ -132,10 +145,16 @@ app.message(async ({ message, client, logger }: any) => {
     const { text, ts, channel } = message;
 
     // Get Slack message link
-    const { permalink } = await client.chat.getPermalink({
-      channel,
-      message_ts: ts,
-    });
+    let permalink = "";
+    try {
+      const result = await client.chat.getPermalink({
+        channel,
+        message_ts: ts,
+      });
+      permalink = result.permalink || "";
+    } catch (error) {
+      console.warn("Failed to fetch permalink:", error);
+    }
 
     // Get channel-specific GitHub client
     const channelGitHubClient = await getGitHubClientForChannel(channel, client);
@@ -171,7 +190,15 @@ app.message(async ({ message, client, logger }: any) => {
 app.event("member_joined_channel", async ({ event, client, logger }: any) => {
   try {
     // Check if the joined member is this bot
-    const auth = await client.auth.test();
+    // Use try-catch for auth.test to allow app to start even with dummy tokens during challenge
+    let auth;
+    try {
+      auth = await client.auth.test();
+    } catch (authError) {
+      logger.error("Auth test failed in member_joined_channel:", authError);
+      return;
+    }
+
     if (event.user !== auth.user_id) return;
 
     const { channel } = event;
@@ -190,24 +217,40 @@ app.event("member_joined_channel", async ({ event, client, logger }: any) => {
 });
 
 export async function main() {
-  const requiredEnvVars = [
+  // Global error handlers to prevent crashes during initial setup/challenge
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+  });
+
+  const slackEnvVars = [
     "SLACK_BOT_TOKEN",
     "SLACK_SIGNING_SECRET",
+  ];
+
+  if (socketMode) {
+    slackEnvVars.push("SLACK_APP_TOKEN");
+  }
+
+  const otherEnvVars = [
     "GITHUB_TOKEN",
     "GITHUB_REPO",
     "GEMINI_API_KEY",
   ];
 
-  if (socketMode) {
-    requiredEnvVars.push("SLACK_APP_TOKEN");
+  const missingSlackVars = slackEnvVars.filter((v) => !process.env[v]);
+  if (missingSlackVars.length > 0) {
+    console.error(`Error: Missing required Slack environment variables: ${missingSlackVars.join(", ")}`);
+    process.exit(1);
   }
 
-  const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
-
-  if (missingVars.length > 0) {
-    console.error(`Error: Missing required environment variables: ${missingVars.join(", ")}`);
-    console.error("Please check your .env file.");
-    process.exit(1);
+  const missingOtherVars = otherEnvVars.filter((v) => !process.env[v] || process.env[v] === "dummy");
+  if (missingOtherVars.length > 0) {
+    console.warn(`Warning: Missing or dummy environment variables: ${missingOtherVars.join(", ")}`);
+    console.warn("The app will start but GitHub/Gemini features will be limited.");
   }
 
   try {
