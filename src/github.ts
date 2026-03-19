@@ -88,7 +88,7 @@ export class GitHubClient {
     }
   }
 
-  async createIssue(result: GeminiAnalysisResult, slackLink?: string): Promise<any> {
+  private async prepareIssueData(result: GeminiAnalysisResult, slackLink?: string) {
     const labelMap: Record<string, string> = {
       "[Feature]": "[Feature]",
       "[Clarify]": "[Q]",
@@ -132,17 +132,62 @@ export class GitHubClient {
       labels.push("assign-to-jules");
     }
 
+    return {
+      title: `${category} ${result.title}`,
+      body,
+      labels,
+      category,
+    };
+  }
+
+  async createIssue(result: GeminiAnalysisResult, slackLink?: string): Promise<any> {
+    const { title, body, labels } = await this.prepareIssueData(result, slackLink);
+
     try {
       const response = await this.octokit.rest.issues.create({
         owner: this.owner,
         repo: this.repo,
-        title: `${category} ${result.title}`,
+        title,
         body,
-        labels: labels,
+        labels,
       });
       return response.data;
     } catch (error) {
       console.error("Failed to create GitHub issue:", error);
+      throw error;
+    }
+  }
+
+  async updateIssue(issueNumber: number, result: GeminiAnalysisResult, slackLink?: string): Promise<any> {
+    const { title, body, labels } = await this.prepareIssueData(result, slackLink);
+
+    try {
+      const response = await this.octokit.rest.issues.update({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        title,
+        body,
+        labels,
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to update GitHub issue #${issueNumber}:`, error);
+      throw error;
+    }
+  }
+
+  async addComment(issueNumber: number, commentBody: string): Promise<any> {
+    try {
+      const response = await this.octokit.rest.issues.createComment({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        body: commentBody,
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to add comment to GitHub issue #${issueNumber}:`, error);
       throw error;
     }
   }
@@ -158,7 +203,9 @@ export class GitHubClient {
       const snapshot = issues
         .filter((issue) => !issue.pull_request)
         .map((issue) => ({
+          number: issue.number,
           title: issue.title,
+          body: issue.body,
           labels: issue.labels.map((l: any) => (typeof l === "string" ? l : l.name)),
         }));
 
