@@ -43,6 +43,31 @@ export class GitHubClient {
     }
   }
 
+  private async ensureLabelExists(name: string, color: string): Promise<void> {
+    try {
+      await this.octokit.rest.issues.getLabel({
+        owner: this.owner,
+        repo: this.repo,
+        name: name,
+      });
+    } catch (error: any) {
+      if (error.status === 404) {
+        try {
+          await this.octokit.rest.issues.createLabel({
+            owner: this.owner,
+            repo: this.repo,
+            name: name,
+            color: color,
+          });
+        } catch (createError) {
+          console.error(`Failed to create label ${name}:`, createError);
+        }
+      } else {
+        console.error(`Failed to get label ${name}:`, error);
+      }
+    }
+  }
+
   async ensureLabelsExist(): Promise<void> {
     const labelsToCreate = [
       { name: "[Feature]", color: "a2eeef" },
@@ -55,31 +80,11 @@ export class GitHubClient {
       { name: "SP: 3", color: "006b75" },
       { name: "SP: 5", color: "006b75" },
       { name: "SP: 8", color: "006b75" },
+      { name: "assign-to-jules", color: "fbca04" },
     ];
 
     for (const label of labelsToCreate) {
-      try {
-        await this.octokit.rest.issues.getLabel({
-          owner: this.owner,
-          repo: this.repo,
-          name: label.name,
-        });
-      } catch (error: any) {
-        if (error.status === 404) {
-          try {
-            await this.octokit.rest.issues.createLabel({
-              owner: this.owner,
-              repo: this.repo,
-              name: label.name,
-              color: label.color,
-            });
-          } catch (createError) {
-            console.error(`Failed to create label ${label.name}:`, createError);
-          }
-        } else {
-          console.error(`Failed to get label ${label.name}:`, error);
-        }
-      }
+      await this.ensureLabelExists(label.name, label.color);
     }
   }
 
@@ -121,6 +126,11 @@ export class GitHubClient {
     if (result.type) labels.push(`Type: ${result.type}`);
     if (result.status) labels.push(`Status: ${result.status}`);
     if (result.priority) labels.push(`Priority: ${result.priority}`);
+
+    if (category === "[Feature]") {
+      await this.ensureLabelExists("assign-to-jules", "fbca04");
+      labels.push("assign-to-jules");
+    }
 
     try {
       const response = await this.octokit.rest.issues.create({

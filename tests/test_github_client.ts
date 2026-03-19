@@ -8,9 +8,44 @@ class MockOctokit {
     issues: {
       create: async (params: any) => {
         return { data: { html_url: "https://github.com/mock/issue", ...params } };
+      },
+      getLabel: async (params: any) => {
+        return { data: { name: params.name } };
+      },
+      createLabel: async (params: any) => {
+        return { data: { name: params.name, color: params.color } };
       }
     }
   };
+}
+
+async function testGitHubClientAssignToJules() {
+  console.log("Running testGitHubClientAssignToJules...");
+
+  const client = new GitHubClient("fake-token", "owner/repo");
+  // @ts-ignore: Access private property for testing or inject mock
+  client.octokit = new MockOctokit();
+
+  const featureResult: GeminiAnalysisResult = {
+    category: "[Feature]",
+    title: "Clear Requirement",
+    description: "Implement search feature.",
+    acceptance_criteria: "Given... When... Then...",
+    is_ambiguous: false,
+    missing_info: []
+  };
+
+  const issue = await client.createIssue(featureResult);
+
+  console.log("Created Issue Title:", issue.title);
+  console.log("Created Issue Labels:", issue.labels);
+
+  if (issue.labels.includes("assign-to-jules") && issue.labels.includes("[Feature]")) {
+    console.log("✅ Test Passed: [Feature] issue correctly assigned 'assign-to-jules' label.");
+  } else {
+    console.error("❌ Test Failed: [Feature] issue was not correctly labeled.");
+    process.exit(1);
+  }
 }
 
 async function testGitHubClientAmbiguity() {
@@ -49,7 +84,12 @@ async function testGitHubClientAmbiguity() {
   }
 }
 
-testGitHubClientAmbiguity().catch(err => {
+async function runTests() {
+  await testGitHubClientAssignToJules();
+  await testGitHubClientAmbiguity();
+}
+
+runTests().catch(err => {
   console.error(err);
   process.exit(1);
 });

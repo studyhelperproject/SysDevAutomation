@@ -9,6 +9,12 @@ class MockOctokit {
       create: async (params: any) => {
         return { data: { html_url: "https://github.com/mock/issue", ...params } };
       },
+      getLabel: async (params: any) => {
+        return { data: { name: params.name } };
+      },
+      createLabel: async (params: any) => {
+        return { data: { name: params.name, color: params.color } };
+      },
       listForRepo: () => {} // Dummy for paginate
     }
   };
