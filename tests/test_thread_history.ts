@@ -10,21 +10,24 @@ async function testThreadHistoryIntegration() {
 
   // Mocking the model to capture the constructed prompt
   (engine as any).model = {
-    generateContent: async (params: any) => {
-      capturedPrompt = params.contents[0].parts[0].text;
-      return {
-        response: {
-          text: () => JSON.stringify({
-            category: "[Feature]",
-            title: "Mocked Task",
-            description: "A task analyzed with thread history.",
-            acceptance_criteria: "Given... When... Then...",
-            is_ambiguous: false,
-            missing_info: []
-          })
-        }
-      };
-    },
+    startChat: () => ({
+      sendMessage: async (prompt: string) => {
+        capturedPrompt = prompt;
+        return {
+          response: {
+            functionCalls: () => [],
+            text: () => JSON.stringify({
+              category: "[Feature]",
+              title: "Mocked Task",
+              description: "A task analyzed with thread history.",
+              acceptance_criteria: "Given... When... Then...",
+              is_ambiguous: false,
+              missing_info: []
+            })
+          }
+        };
+      }
+    }),
     modelName: "gemini-3-flash-preview"
   };
 

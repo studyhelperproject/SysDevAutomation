@@ -18,6 +18,7 @@ async function verify() {
 
   const testCases: GeminiAnalysisResult[] = [
     {
+      action: "create",
       category: "[Feature]",
       title: "Google連携ボタンの追加",
       description: "ログイン画面にGoogle連携ボタンを追加し、認証を可能にする。",
@@ -26,6 +27,7 @@ async function verify() {
       missing_info: []
     },
     {
+      action: "create",
       category: "[Clarify]",
       title: "デザインの改善",
       description: "デザインを『いい感じ』にする。",
@@ -50,6 +52,7 @@ async function verify() {
 function mockVerify() {
   const testCases: GeminiAnalysisResult[] = [
     {
+      action: "create",
       category: "[Feature]",
       title: "Google連携ボタンの追加",
       description: "ログイン画面にGoogle連携ボタンを追加し、認証を可能にする。",
@@ -58,6 +61,7 @@ function mockVerify() {
       missing_info: []
     },
     {
+      action: "create",
       category: "[Clarify]",
       title: "デザインの改善",
       description: "デザインを『いい感じ』にする。",
