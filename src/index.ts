@@ -25,7 +25,7 @@ const socketMode = process.env.SLACK_SOCKET_MODE === "true";
 const appOptions: AppOptions = {
   token: getEnv("SLACK_BOT_TOKEN", "xoxb-dummy"),
   signingSecret: getEnv("SLACK_SIGNING_SECRET", "dummy"),
-  endpoints: ["/slack/events"],
+  endpoints: ["/"],
   customRoutes: [
     {
       path: "/health",
@@ -37,34 +37,10 @@ const appOptions: AppOptions = {
     },
     {
       path: "/",
-      method: ["GET", "POST"],
+      method: ["GET"],
       handler: (req, res) => {
-        if (req.method === "POST") {
-          let body = "";
-          req.on("data", (chunk) => {
-            body += chunk;
-          });
-          req.on("end", () => {
-            try {
-              const data = JSON.parse(body);
-              if (data.type === "url_verification") {
-                res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ challenge: data.challenge }));
-                return;
-              }
-              console.warn("Received POST request at root path that is not a url_verification challenge.");
-              console.warn("If this is a Slack event, please check your App settings and ensure the Request URL is set to <YOUR_URL>/slack/events");
-              res.writeHead(404);
-              res.end("Slack events should be sent to /slack/events");
-            } catch (e) {
-              res.writeHead(400);
-              res.end("Invalid JSON");
-            }
-          });
-          return;
-        }
         res.writeHead(200);
-        res.end("SysDevAutomation service is running. Slack events are accepted at /slack/events");
+        res.end("SysDevAutomation service is running. Slack events are accepted at /");
       },
     },
   ],

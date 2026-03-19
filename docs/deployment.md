@@ -58,7 +58,7 @@ gcloud run deploy $SERVICE_NAME \
 
 ### 注意点
 - **HTTP Mode**: Cloud Run は通常 HTTP Mode で動作させるため、`SLACK_SOCKET_MODE=false` に設定します。
-- **Slack 設定の変更**: HTTP Mode で動かす場合、Slack App 設定の `Event Subscriptions` で、Cloud Run の URL（例: `https://.../slack/events`）を Request URL として設定する必要があります。
+- **Slack 設定の変更**: HTTP Mode で動かす場合、Slack App 設定の `Event Subscriptions` で、Cloud Run の URL（例: `https://.../`）を Request URL として設定する必要があります。
 
 ## 5. Slack App の再設定 (HTTP Mode の場合)
 
@@ -66,10 +66,9 @@ gcloud run deploy $SERVICE_NAME \
 2.  [Slack App コンソール](https://api.slack.com/apps) に移動します。
 3.  **Event Subscriptions**:
     - `Enable Events` をオンにします。
-    - `Request URL` に `https://<YOUR_CLOUD_RUN_URL>/slack/events` を入力し、`Verified` になることを確認します。
-  - **URL Verification の補足**: 本システムは、ルートパス (`/`) でも Slack の `url_verification` チャレンジに応答するように設計されています。もし `/slack/events` での検証がうまくいかない場合は、一時的に `https://<YOUR_CLOUD_RUN_URL>/` を Request URL として設定して検証を通し、その後正しいパスに戻すことができます。
+    - `Request URL` に `https://<YOUR_CLOUD_RUN_URL>/` を入力し、`Verified` になることを確認します。
 4.  **Interactivity & Shortcuts** (オプション):
-    - インタラクティブ機能を使用する場合は、Request URL に `https://<YOUR_CLOUD_RUN_URL>/slack/events` を設定します。
+    - インタラクティブ機能を使用する場合は、Request URL に `https://<YOUR_CLOUD_RUN_URL>/` を設定します。
 
 ## 6. ローカル開発と検証
 
