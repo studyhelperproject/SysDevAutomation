@@ -8,7 +8,7 @@ export class GeminiEngine {
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: "gemini-1.5-pro",
+      model: "gemini-3-flash-preview",
       systemInstruction: `
 あなたは一流のITプロジェクトマネージャー兼システムアナリストです。
 顧客の曖昧な発言を、エンジニアが即座に実装可能な「厳密な仕様」に変換するのが任務です。
