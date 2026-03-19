@@ -8,18 +8,24 @@ import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+// Helper to get trimmed environment variables
+const getEnv = (name: string, defaultValue: string = ""): string => {
+  const val = process.env[name];
+  return val ? val.trim() : defaultValue;
+};
+
 export const githubClient = new GitHubClient(
-  process.env.GITHUB_TOKEN || "dummy",
-  process.env.GITHUB_REPO || "studyhelperproject/SysDevAutomation"
+  getEnv("GITHUB_TOKEN", "dummy"),
+  getEnv("GITHUB_REPO", "studyhelperproject/SysDevAutomation")
 );
-export const geminiEngine = new GeminiEngine(process.env.GEMINI_API_KEY || "dummy");
+export const geminiEngine = new GeminiEngine(getEnv("GEMINI_API_KEY", "dummy"));
 
 const socketMode = process.env.SLACK_SOCKET_MODE === "true";
 
 const appOptions: AppOptions = {
-  token: process.env.SLACK_BOT_TOKEN || "xoxb-dummy",
-  signingSecret: process.env.SLACK_SIGNING_SECRET || "dummy",
-  endpoints: ["/", "/slack/events"],
+  token: getEnv("SLACK_BOT_TOKEN", "xoxb-dummy"),
+  signingSecret: getEnv("SLACK_SIGNING_SECRET", "dummy"),
+  endpoints: ["/slack/events"],
   customRoutes: [
     {
       path: "/health",
@@ -31,10 +37,34 @@ const appOptions: AppOptions = {
     },
     {
       path: "/",
-      method: ["GET"],
+      method: ["GET", "POST"],
       handler: (req, res) => {
+        if (req.method === "POST") {
+          let body = "";
+          req.on("data", (chunk) => {
+            body += chunk;
+          });
+          req.on("end", () => {
+            try {
+              const data = JSON.parse(body);
+              if (data.type === "url_verification") {
+                res.writeHead(200, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ challenge: data.challenge }));
+                return;
+              }
+              console.warn("Received POST request at root path that is not a url_verification challenge.");
+              console.warn("If this is a Slack event, please check your App settings and ensure the Request URL is set to <YOUR_URL>/slack/events");
+              res.writeHead(404);
+              res.end("Slack events should be sent to /slack/events");
+            } catch (e) {
+              res.writeHead(400);
+              res.end("Invalid JSON");
+            }
+          });
+          return;
+        }
         res.writeHead(200);
-        res.end("SysDevAutomation service is running. Slack events are accepted at / and /slack/events");
+        res.end("SysDevAutomation service is running. Slack events are accepted at /slack/events");
       },
     },
   ],
@@ -42,7 +72,7 @@ const appOptions: AppOptions = {
 
 if (socketMode) {
   appOptions.socketMode = true;
-  appOptions.appToken = process.env.SLACK_APP_TOKEN || "xapp-dummy";
+  appOptions.appToken = getEnv("SLACK_APP_TOKEN", "xapp-dummy");
   console.log("Starting in Socket Mode");
 } else {
   appOptions.socketMode = false;
@@ -99,7 +129,7 @@ async function getGitHubClientForChannel(channelId: string, client: any): Promis
     console.log(`Created repository ${fullRepoName} for channel ${channelId}`);
   }
 
-  const clientForChannel = new GitHubClient(process.env.GITHUB_TOKEN!, fullRepoName);
+  const clientForChannel = new GitHubClient(getEnv("GITHUB_TOKEN"), fullRepoName);
   if (isNew) {
     await clientForChannel.ensureLabelsExist();
   }
@@ -261,7 +291,7 @@ export async function main() {
   ];
 
   const missingSlackVars = slackEnvVars.filter((v) => {
-    const val = process.env[v];
+    const val = getEnv(v);
     return !val || val === "dummy" || val === "xoxb-dummy" || val === "xapp-dummy";
   });
   if (missingSlackVars.length > 0) {
@@ -269,7 +299,7 @@ export async function main() {
     console.warn("The app will start but Slack features may not work correctly.");
   }
 
-  const missingOtherVars = otherEnvVars.filter((v) => !process.env[v] || process.env[v] === "dummy");
+  const missingOtherVars = otherEnvVars.filter((v) => !getEnv(v) || getEnv(v) === "dummy");
   if (missingOtherVars.length > 0) {
     console.warn(`Warning: Missing or dummy environment variables: ${missingOtherVars.join(", ")}`);
     console.warn("The app will start but GitHub/Gemini features will be limited.");
