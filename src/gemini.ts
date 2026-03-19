@@ -43,14 +43,20 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
 
 ■コンテキストの活用
 過去のIssue状況（スナップショット）が提供された場合、重複する要望がないか確認し、関連性がある場合は説明に含めてください。
+Slackのスレッド履歴が提供された場合、これまでの会話の流れを把握し、すでにユーザーから提供された情報を再度質問しないようにしてください。
 `,
     });
   }
 
-  async analyzeMessage(message: string, context?: string): Promise<GeminiAnalysisResult> {
-    const prompt = context
-      ? `以下のプロジェクト状況（YAML形式）を考慮して、ユーザーの入力を分析してください。\n\n[Project Context]\n${context}\n\n[User Input]\n${message}`
-      : message;
+  async analyzeMessage(message: string, context?: string, threadHistory?: string): Promise<GeminiAnalysisResult> {
+    let prompt = "";
+    if (context) {
+      prompt += `以下のプロジェクト状況（YAML形式）を考慮して、ユーザーの入力を分析してください。\n\n[Project Context]\n${context}\n\n`;
+    }
+    if (threadHistory) {
+      prompt += `以下のスレッド履歴を考慮して、ユーザーの最新の入力を分析してください。これまでの会話の流れを把握し、重複した質問を避けてください。\n\n[Thread History]\n${threadHistory}\n\n`;
+    }
+    prompt += `[User Input]\n${message}`;
 
     const result = await this.model.generateContent({
       contents: [
