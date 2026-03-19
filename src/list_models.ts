@@ -1,7 +1,17 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as dotenv from "dotenv";
 
 dotenv.config();
+
+interface Model {
+  name: string;
+  displayName: string;
+  description: string;
+  supportedGenerationMethods: string[];
+}
+
+interface ListModelsResponse {
+  models: Model[];
+}
 
 async function listModels() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -10,11 +20,18 @@ async function listModels() {
     return;
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
   try {
-    const response = await genAI.listModels();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = (await response.json()) as ListModelsResponse;
+
     console.log("Available models:");
-    response.models.forEach((m) => {
+    data.models.forEach((m: Model) => {
       console.log(`- ${m.name} (DisplayName: ${m.displayName})`);
     });
   } catch (error) {
