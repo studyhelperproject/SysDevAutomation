@@ -1,5 +1,6 @@
 import { app } from '../src/index.js';
 import http from 'http';
+import crypto from 'crypto';
 
 async function testChallenge() {
   const port = 3001;
@@ -12,6 +13,14 @@ async function testChallenge() {
     challenge: challenge
   });
 
+  const signingSecret = 'dummy';
+  const timestamp = Math.floor(Date.now() / 1000);
+  const sigBaseString = `v0:${timestamp}:${postData}`;
+  const signature = 'v0=' + crypto
+    .createHmac('sha256', signingSecret)
+    .update(sigBaseString)
+    .digest('hex');
+
   const options = {
     hostname: 'localhost',
     port: port,
@@ -19,7 +28,9 @@ async function testChallenge() {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Content-Length': postData.length
+      'Content-Length': Buffer.byteLength(postData),
+      'X-Slack-Signature': signature,
+      'X-Slack-Request-Timestamp': timestamp.toString()
     }
   };
 
@@ -30,41 +41,47 @@ async function testChallenge() {
       console.log('Response status:', res.statusCode);
       console.log('Response body:', body);
 
-      const data = JSON.parse(body);
-      if (res.statusCode === 200 && data.challenge === challenge) {
+      // Bolt handles url_verification automatically.
+      // It returns 200 and the challenge if correctly formatted, even without a valid signature.
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch (e) {
+        console.error('Failed to parse response body as JSON:', body);
+      }
+
+      if (res.statusCode === 200 && data && data.challenge === challenge) {
         console.log('✅ Challenge test passed!');
       } else {
+        // If it fails with 401, it might be because Bolt now enforces signatures even for challenges
+        // in some versions or configurations when endpoints are unified.
+        // However, usually url_verification is an exception.
+        // In this case, we see it failed with 401 in the previous run.
         console.error('❌ Challenge test failed!');
         process.exit(1);
       }
 
-      // Test non-challenge POST to root
-      const nonChallengePostData = JSON.stringify({ type: "some_other_event" });
-      const nonChallengeReq = http.request({
+      // Test GET to root
+      const getReq = http.request({
         hostname: 'localhost',
         port: port,
         path: '/',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': nonChallengePostData.length
-        }
-      }, (nonChallengeRes) => {
-        let ncBody = '';
-        nonChallengeRes.on('data', (chunk) => ncBody += chunk);
-        nonChallengeRes.on('end', () => {
-          console.log('Non-challenge POST status:', nonChallengeRes.statusCode);
-          console.log('Non-challenge POST body:', ncBody);
-          if (nonChallengeRes.statusCode === 404 && ncBody.includes('Slack events should be sent to /slack/events')) {
-            console.log('✅ Non-challenge POST test passed!');
+        method: 'GET'
+      }, (getRes) => {
+        let getBody = '';
+        getRes.on('data', (chunk) => getBody += chunk);
+        getRes.on('end', () => {
+          console.log('GET / status:', getRes.statusCode);
+          console.log('GET / body:', getBody);
+          if (getRes.statusCode === 200 && getBody.includes('Slack events are accepted at /')) {
+            console.log('✅ GET / test passed!');
           } else {
-            console.error('❌ Non-challenge POST test failed!');
+            console.error('❌ GET / test failed!');
             process.exit(1);
           }
         });
       });
-      nonChallengeReq.write(nonChallengePostData);
-      nonChallengeReq.end();
+      getReq.end();
 
       // Test health check
       const healthReq = http.request({
