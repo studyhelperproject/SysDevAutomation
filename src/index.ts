@@ -112,11 +112,11 @@ async function getGitHubClientForChannel(channelId: string, client: any): Promis
   return clientForChannel;
 }
 
-// app_mention handler
-app.event("app_mention", async ({ event, client, logger }: any) => {
+/**
+ * Unified handler for Slack messages and mentions.
+ */
+async function handleSlackMessage({ text, ts, thread_ts, channel, client, logger }: any) {
   try {
-    const { text, ts, channel } = event;
-
     // Get Slack message link
     let permalink = "";
     try {
@@ -129,6 +129,27 @@ app.event("app_mention", async ({ event, client, logger }: any) => {
       console.warn("Failed to fetch permalink:", error);
     }
 
+    // Fetch thread history if message is part of a thread
+    let threadHistory = "";
+    if (thread_ts) {
+      try {
+        const replies = await client.conversations.replies({
+          channel,
+          ts: thread_ts,
+          limit: 20, // Limit to recent 20 messages for context
+        });
+
+        if (replies.ok && replies.messages) {
+          threadHistory = replies.messages
+            .filter((m: any) => m.ts !== ts) // Exclude current message
+            .map((m: any) => `${m.bot_id ? 'Bot' : 'User'}: ${m.text}`)
+            .join("\n");
+        }
+      } catch (error) {
+        console.warn("Failed to fetch thread history:", error);
+      }
+    }
+
     // Get channel-specific GitHub client
     const channelGitHubClient = await getGitHubClientForChannel(channel, client);
 
@@ -136,7 +157,7 @@ app.event("app_mention", async ({ event, client, logger }: any) => {
     const context = await channelGitHubClient.getProjectContext();
 
     // Analyze message with Gemini
-    const result = await geminiEngine.analyzeMessage(text, context);
+    const result = await geminiEngine.analyzeMessage(text, context, threadHistory);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Create GitHub issue
@@ -152,11 +173,17 @@ app.event("app_mention", async ({ event, client, logger }: any) => {
   } catch (error) {
     logger.error(error);
     await client.chat.postMessage({
-      channel: event.channel,
-      thread_ts: event.ts,
+      channel,
+      thread_ts: ts,
       text: `Error: Failed to process request. ${error instanceof Error ? error.message : String(error)}`,
     });
   }
+}
+
+// app_mention handler
+app.event("app_mention", async ({ event, client, logger }: any) => {
+  const { text, ts, thread_ts, channel } = event;
+  await handleSlackMessage({ text, ts, thread_ts, channel, client, logger });
 });
 
 // message.im handler
@@ -166,49 +193,8 @@ app.message(async ({ message, client, logger }: any) => {
   // Ignore bot messages
   if ("bot_id" in message) return;
 
-  try {
-    const { text, ts, channel } = message;
-
-    // Get Slack message link
-    let permalink = "";
-    try {
-      const result = await client.chat.getPermalink({
-        channel,
-        message_ts: ts,
-      });
-      permalink = result.permalink || "";
-    } catch (error) {
-      console.warn("Failed to fetch permalink:", error);
-    }
-
-    // Get channel-specific GitHub client
-    const channelGitHubClient = await getGitHubClientForChannel(channel, client);
-
-    // Fetch project context from GitHub
-    const context = await channelGitHubClient.getProjectContext();
-
-    // Analyze message with Gemini
-    const result = await geminiEngine.analyzeMessage(text, context);
-    console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
-
-    // Create GitHub issue
-    const issue = await channelGitHubClient.createIssue(result, permalink);
-    console.log("GitHub Issue Created:", issue.html_url);
-
-    // Reply to Slack
-    await client.chat.postMessage({
-      channel,
-      thread_ts: ts,
-      text: formatSlackReply(result, issue.html_url),
-    });
-  } catch (error) {
-    logger.error(error);
-    await client.chat.postMessage({
-      channel: message.channel,
-      thread_ts: message.ts,
-      text: `Error: Failed to process request. ${error instanceof Error ? error.message : String(error)}`,
-    });
-  }
+  const { text, ts, thread_ts, channel } = message;
+  await handleSlackMessage({ text, ts, thread_ts, channel, client, logger });
 });
 
 // member_joined_channel handler (when bot is added to a channel)
