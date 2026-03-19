@@ -7,6 +7,7 @@ const testCases = [
   {
     name: 'Clear Feature Request',
     result: {
+      action: 'create',
       category: '[Feature]',
       title: 'Add login',
       description: 'Add Google login',
@@ -23,6 +24,7 @@ const testCases = [
   {
     name: 'Ambiguous Clarify Request',
     result: {
+      action: 'create',
       category: '[Clarify]',
       title: 'Vague request',
       description: 'Something vague',
@@ -41,6 +43,7 @@ const testCases = [
   {
     name: 'Dependency Request',
     result: {
+      action: 'create',
       category: '[Dependency]',
       title: 'Need API Key',
       description: 'Need Stripe API key',
@@ -53,6 +56,38 @@ const testCases = [
       'Category: [Dependency]',
       '*Missing Information / Questions:*',
       '- Please provide the production API key'
+    ]
+  },
+  {
+    name: 'Update Request',
+    result: {
+      action: 'update',
+      category: '[Feature]',
+      title: 'Updated login',
+      description: 'Updated Google login',
+      acceptance_criteria: 'Given...',
+      is_ambiguous: false,
+      missing_info: []
+    } as GeminiAnalysisResult,
+    expectedContains: [
+      'GitHub Issue updated: https://github.com/owner/repo/issues/1',
+      'Category: [Feature]'
+    ]
+  },
+  {
+    name: 'Comment Request',
+    result: {
+      action: 'comment',
+      category: '[Feature]',
+      title: 'Add login',
+      description: 'Comment text',
+      acceptance_criteria: '',
+      is_ambiguous: false,
+      missing_info: []
+    } as GeminiAnalysisResult,
+    expectedContains: [
+      'GitHub Issue commented on: https://github.com/owner/repo/issues/1',
+      'Category: [Feature]'
     ]
   }
 ];

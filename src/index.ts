@@ -62,7 +62,11 @@ export const app = new App(appOptions);
  * Formats the Slack reply message based on Gemini analysis.
  */
 export function formatSlackReply(result: GeminiAnalysisResult, issueUrl: string): string {
-  let message = `GitHub Issue created: ${issueUrl}\nCategory: ${result.category}`;
+  let actionText = "created";
+  if (result.action === "update") actionText = "updated";
+  if (result.action === "comment") actionText = "commented on";
+
+  let message = `GitHub Issue ${actionText}: ${issueUrl}\nCategory: ${result.category}`;
 
   const needsClarification = result.is_ambiguous || result.category === "[Clarify]" || result.category === "[Dependency]";
 
@@ -160,9 +164,20 @@ async function handleSlackMessage({ text, ts, thread_ts, channel, client, logger
     const result = await geminiEngine.analyzeMessage(text, context, threadHistory);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
-    // Create GitHub issue
-    const issue = await channelGitHubClient.createIssue(result, permalink);
-    console.log("GitHub Issue Created:", issue.html_url);
+    // Perform action on GitHub issue
+    let issue;
+    if (result.action === "update" && result.issue_number) {
+      issue = await channelGitHubClient.updateIssue(result.issue_number, result, permalink);
+      console.log(`GitHub Issue Updated: #${result.issue_number}`);
+    } else if (result.action === "comment" && result.issue_number) {
+      // For comments, we use description as the comment body
+      const comment = await channelGitHubClient.addComment(result.issue_number, result.description);
+      issue = { html_url: comment.html_url }; // Minimal issue-like object for formatSlackReply
+      console.log(`GitHub Comment Added to: #${result.issue_number}`);
+    } else {
+      issue = await channelGitHubClient.createIssue(result, permalink);
+      console.log("GitHub Issue Created:", issue.html_url);
+    }
 
     // Reply to Slack
     await client.chat.postMessage({

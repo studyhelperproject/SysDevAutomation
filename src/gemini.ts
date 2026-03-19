@@ -15,6 +15,11 @@ export class GeminiEngine {
 
 Slackからの入力を分析し、以下のいずれかのアクションを選択し、指定のJSON形式で出力してください。
 
+■アクションの種類
+- create: 新規にIssueを作成する。
+- update: 既存のIssueの内容を更新する。特に [Clarify] ラベルの付いたIssueに対して、ユーザーから追加情報が得られた場合に使用する。
+- comment: 既存のIssueにコメントを追加する。進捗の報告や、軽微な追記に使用する。
+
 ■分類タグの定義
 - [Feature]: 実装すべき機能。仕様が明確なもの。
 - [Clarify]: 定義が不足しており、見積もり不能な項目。
@@ -27,9 +32,12 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
 - 「ログイン機能を追加して」といった抽象的で範囲が広すぎる要望も、具体的な要件が特定できないため is_ambiguous: true とし、category: [Clarify] としてください。
 - [Feature] と判定するためには、その機能が「何を」「いつ」「どのように」するかが明確である必要があります（例：「Google OAuthを使用したログイン機能を追加し、ユーザー情報をDBに保存する」は [Feature]）。
 - [Feature] の場合、Acceptance Criteria（受入基準）を「Given/When/Then」形式で記述してください。
+- **重要**: 既存の [Clarify] Issueに関連する発言の場合、新規作成（create）せず、既存のIssueを更新（update）またはコメント（comment）してください。これにより情報の断片化を防ぎます。
 
 ■出力フォーマット (JSON)
 {
+  "action": "create | update | comment",
+  "issue_number": number (update/commentの場合に必須),
   "category": "[Feature] | [Clarify] | [Dependency] | [Estimate] | [Out of Scope]",
   "title": "Issueのタイトル（簡潔かつ具体的）",
   "description": "詳細な説明",
@@ -42,7 +50,8 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
 }
 
 ■コンテキストの活用
-過去のIssue状況（スナップショット）が提供された場合、重複する要望がないか確認し、関連性がある場合は説明に含めてください。
+過去のIssue状況（スナップショット）が提供された場合、重複する要望がないか確認してください。
+既存のIssueを更新（update）する場合は、元の内容（description等）を活かしつつ、最新の情報を反映させた「完成版」のIssue内容を提供してください。
 Slackのスレッド履歴が提供された場合、これまでの会話の流れを把握し、すでにユーザーから提供された情報を再度質問しないようにしてください。
 `,
     });

@@ -23,17 +23,23 @@ class MockOctokit {
     if (params.state === "open") {
       return [
         {
+          number: 1,
           title: "Existing Feature",
+          body: "Existing body",
           labels: [{ name: "SP: 5" }, { name: "Type: Feature" }],
           pull_request: null
         },
         {
+          number: 2,
           title: "Clarification Needed",
+          body: "Vague body",
           labels: [{ name: "[Q]" }],
           pull_request: null
         },
         {
+          number: 3,
           title: "PR Title",
+          body: "PR body",
           labels: [],
           pull_request: {}
         }
@@ -59,14 +65,14 @@ async function testGetProjectContext() {
     process.exit(1);
   }
 
-  if (parsed[0].title === "Existing Feature" && parsed[0].labels.includes("Type: Feature")) {
+  if (parsed[0].number === 1 && parsed[0].title === "Existing Feature" && parsed[0].body === "Existing body" && parsed[0].labels.includes("Type: Feature")) {
     console.log("✅ Test Passed: Issue 1 correctly captured.");
   } else {
     console.error("❌ Test Failed: Issue 1 data incorrect.");
     process.exit(1);
   }
 
-  if (parsed[1].title === "Clarification Needed" && parsed[1].labels.includes("[Q]")) {
+  if (parsed[1].number === 2 && parsed[1].title === "Clarification Needed" && parsed[1].body === "Vague body" && parsed[1].labels.includes("[Q]")) {
     console.log("✅ Test Passed: Issue 2 correctly captured.");
   } else {
     console.error("❌ Test Failed: Issue 2 data incorrect.");
@@ -81,6 +87,7 @@ async function testCreateIssueWithMetadata() {
   client.octokit = new MockOctokit();
 
   const result: GeminiAnalysisResult = {
+    action: "create",
     category: "[Feature]",
     title: "New Feature",
     description: "Description",
