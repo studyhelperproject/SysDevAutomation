@@ -1,5 +1,6 @@
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerativeModel, SchemaType } from "@google/generative-ai";
 import { GeminiAnalysisResult } from "./types.js";
+import { GitHubClient } from "./github.js";
 
 export class GeminiEngine {
   private genAI: GoogleGenerativeAI;
@@ -33,6 +34,7 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
 - [Feature] と判定するためには、その機能が「何を」「いつ」「どのように」するかが明確である必要があります（例：「Google OAuthを使用したログイン機能を追加し、ユーザー情報をDBに保存する」は [Feature]）。
 - [Feature] の場合、Acceptance Criteria（受入基準）を「Given/When/Then」形式で記述してください。
 - **重要**: 既存の [Clarify] Issueに関連する発言の場合、新規作成（create）せず、既存のIssueを更新（update）またはコメント（comment）してください。これにより情報の断片化を防ぎます。
+- **重要**: ユーザーが過去のIssue番号（例：Issue #3）やGitHubのIssue URLに言及し、その内容を知る必要がある場合は、必ず get_issue ツールを使用して内容を確認してください。
 
 ■出力フォーマット (JSON)
 {
@@ -54,10 +56,30 @@ Slackからの入力を分析し、以下のいずれかのアクションを選
 既存のIssueを更新（update）する場合は、元の内容（description等）を活かしつつ、最新の情報を反映させた「完成版」のIssue内容を提供してください。
 Slackのスレッド履歴が提供された場合、これまでの会話の流れを把握し、すでにユーザーから提供された情報を再度質問しないようにしてください。
 `,
+      tools: [
+        {
+          functionDeclarations: [
+            {
+              name: "get_issue",
+              description: "GitHub Issueの内容（タイトルと本文）を取得します。",
+              parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  issue_number: {
+                    type: SchemaType.NUMBER,
+                    description: "取得するIssueの番号（例：3）",
+                  },
+                },
+                required: ["issue_number"],
+              },
+            },
+          ],
+        },
+      ],
     });
   }
 
-  async analyzeMessage(message: string, context?: string, threadHistory?: string): Promise<GeminiAnalysisResult> {
+  async analyzeMessage(message: string, context?: string, threadHistory?: string, githubClient?: GitHubClient): Promise<GeminiAnalysisResult> {
     let prompt = "";
     if (context) {
       prompt += `以下のプロジェクト状況（YAML形式）を考慮して、ユーザーの入力を分析してください。\n\n[Project Context]\n${context}\n\n`;
@@ -67,19 +89,40 @@ Slackのスレッド履歴が提供された場合、これまでの会話の流
     }
     prompt += `[User Input]\n${message}`;
 
-    const result = await this.model.generateContent({
-      contents: [
-        { role: "user", parts: [{ text: prompt }] }
-      ],
-      generationConfig: {
-        responseMimeType: "application/json",
-      },
-    });
+    const chat = this.model.startChat();
+    let result = await chat.sendMessage(prompt);
+    let response = result.response;
 
-    const response = await result.response;
+    // Handle function calls loop
+    while (response.functionCalls() && response.functionCalls()!.length > 0) {
+      const toolResults: any[] = [];
+      for (const call of response.functionCalls()!) {
+        if (call.name === "get_issue" && githubClient) {
+          const { issue_number } = call.args as { issue_number: number };
+          console.log(`- Calling get_issue tool for Issue #${issue_number}`);
+          const issueContent = await githubClient.getIssue(issue_number);
+          toolResults.push({
+            functionResponse: {
+              name: "get_issue",
+              response: { content: issueContent },
+            },
+          });
+        }
+      }
+
+      if (toolResults.length > 0) {
+        result = await chat.sendMessage(toolResults);
+        response = result.response;
+      } else {
+        break;
+      }
+    }
+
     const text = response.text();
     try {
-      return JSON.parse(text) as GeminiAnalysisResult;
+      // Remove possible markdown block formatting
+      const cleanedText = text.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+      return JSON.parse(cleanedText) as GeminiAnalysisResult;
     } catch (e) {
       console.error("Failed to parse Gemini response:", text);
       throw e;

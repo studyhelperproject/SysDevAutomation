@@ -192,6 +192,21 @@ export class GitHubClient {
     }
   }
 
+  async getIssue(issueNumber: number): Promise<string> {
+    try {
+      const response = await this.octokit.rest.issues.get({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+      });
+      const issue = response.data;
+      return `Issue #${issue.number}: ${issue.title}\n\n${issue.body || ""}`;
+    } catch (error) {
+      console.error(`Failed to fetch GitHub issue #${issueNumber}:`, error);
+      return `Error: Could not fetch issue #${issueNumber}.`;
+    }
+  }
+
   async getProjectContext(): Promise<string> {
     try {
       const issues = await this.octokit.paginate(this.octokit.rest.issues.listForRepo, {

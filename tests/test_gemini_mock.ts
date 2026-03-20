@@ -13,21 +13,24 @@ async function testGeminiMock() {
   // Manually override the model property to inject mock behavior
   // This is a simplified mock for the sake of the test environment
   (engine as any).model = {
-    generateContent: async (params: any) => {
-      console.log(`- Mocking generateContent call for model: ${(engine as any).model.modelName || 'gemini-3-flash-preview'}`);
-      return {
-        response: {
-          text: () => JSON.stringify({
-            category: "[Feature]",
-            title: "Mocked Task",
-            description: "A task analyzed by the mock engine.",
-            acceptance_criteria: "Given... When... Then...",
-            is_ambiguous: false,
-            missing_info: []
-          })
-        }
-      };
-    },
+    startChat: () => ({
+      sendMessage: async (prompt: string) => {
+        console.log(`- Mocking sendMessage call for model: ${(engine as any).model.modelName || 'gemini-3-flash-preview'}`);
+        return {
+          response: {
+            functionCalls: () => [],
+            text: () => JSON.stringify({
+              category: "[Feature]",
+              title: "Mocked Task",
+              description: "A task analyzed by the mock engine.",
+              acceptance_criteria: "Given... When... Then...",
+              is_ambiguous: false,
+              missing_info: []
+            })
+          }
+        };
+      }
+    }),
     modelName: "gemini-3-flash-preview"
   };
 

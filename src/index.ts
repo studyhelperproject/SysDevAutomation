@@ -161,7 +161,7 @@ async function handleSlackMessage({ text, ts, thread_ts, channel, client, logger
     const context = await channelGitHubClient.getProjectContext();
 
     // Analyze message with Gemini
-    const result = await geminiEngine.analyzeMessage(text, context, threadHistory);
+    const result = await geminiEngine.analyzeMessage(text, context, threadHistory, channelGitHubClient);
     console.log("Gemini Analysis:", JSON.stringify(result, null, 2));
 
     // Perform action on GitHub issue
