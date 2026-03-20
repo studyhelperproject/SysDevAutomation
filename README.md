@@ -9,12 +9,18 @@
 ### 全体像：AIによる要件変換パイプライン
 
 1.  **Input**: お客様からのコメント（Slackメンション、チャット、面談メモなど）。
-2.  **Gemini Analysis**: テンプレートに沿って内容を分類・構造化。
+2.  **Gemini Analysis**: 抽出されたコンテキスト（GitHub Issue 一覧、スレッド履歴）とともに、Geminiが要望を分析。
 3.  **Action Selection**:
-    *   **明確な要件** → Development Issue 作成 ＋ 見積もり加算。
-    *   **不明確・曖昧な点** → Clarification Issue（質問状）作成 ＋ お客様へ返信。
-    *   **リソース不足** → Data Request（素材・権限要求）発行。
-4.  **Output**: GitHub Projectの更新、見積書の自動修正、お客様への回答。
+    *   **明確な要件** → `[Feature]` Issue 作成（受入基準を自動定義）。
+    *   **不明確・曖昧な点** → `[Clarify]` Issue（質問状）作成 ＋ お客様へ返信。
+    *   **リソース不足** → `[Dependency]` (素材・権限要求) 発行。
+    *   **既存Issueへの追記** → ユーザーの追加情報を既存Issueへ反映（情報の集約）。
+4.  **Output**: GitHubリポジトリの更新、見積もり（ストーリーポイント）の集計、お客様への回答。
+
+詳細な仕様については以下のドキュメントを参照してください。
+- [機能仕様書](docs/functional_specifications.md)
+- [技術仕様書](docs/technical_specifications.md)
+- [ファイルマップ](docs/file_map.md)
 
 ---
 
