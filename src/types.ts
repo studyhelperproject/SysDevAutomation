@@ -8,6 +8,8 @@ export interface GeminiAnalysisResult {
   type?: string;
   status?: string;
   priority?: string;
-  action: 'create' | 'update' | 'comment';
+  action: 'create' | 'update' | 'comment' | 'UPDATE_DOCS';
   issue_number?: number;
+  feature_doc_filename?: string;
+  feature_doc_markdown?: string;
 }

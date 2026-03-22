@@ -1,6 +1,7 @@
 import { Octokit } from "octokit";
 import { GeminiAnalysisResult } from "./types.js";
 import yaml from "js-yaml";
+import { Buffer } from "buffer";
 
 export class GitHubClient {
   private octokit: Octokit;
@@ -104,7 +105,11 @@ export class GitHubClient {
 
     const label = labelMap[category] || category;
 
-    let body = `## Description\n${result.description}\n\n`;
+    let body = "";
+    if (result.action === "UPDATE_DOCS" && result.feature_doc_filename) {
+      body += `## 参照ドキュメント: ${result.feature_doc_filename}\n\n`;
+    }
+    body += `## Description\n${result.description}\n\n`;
 
     if (category === "[Feature]" && result.acceptance_criteria) {
       body += `## Acceptance Criteria\n${result.acceptance_criteria}\n\n`;
@@ -127,7 +132,7 @@ export class GitHubClient {
     if (result.status) labels.push(`Status: ${result.status}`);
     if (result.priority) labels.push(`Priority: ${result.priority}`);
 
-    if (category === "[Feature]") {
+    if (category === "[Feature]" || result.action === "UPDATE_DOCS") {
       await this.ensureLabelExists("assign-to-jules", "fbca04");
       labels.push("assign-to-jules");
     }
@@ -207,6 +212,39 @@ export class GitHubClient {
     }
   }
 
+  async upsertFile(path: string, content: string, message: string): Promise<any> {
+    let sha: string | undefined;
+    try {
+      const { data } = await this.octokit.rest.repos.getContent({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+      });
+      if (!Array.isArray(data) && data.type === "file") {
+        sha = data.sha;
+      }
+    } catch (error: any) {
+      if (error.status !== 404) {
+        throw error;
+      }
+    }
+
+    try {
+      const response = await this.octokit.rest.repos.createOrUpdateFileContents({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+        message,
+        content: Buffer.from(content).toString('base64'),
+        sha,
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to upsert file at ${path}:`, error);
+      throw error;
+    }
+  }
+
   async getProjectContext(): Promise<string> {
     try {
       const issues = await this.octokit.paginate(this.octokit.rest.issues.listForRepo, {
@@ -224,7 +262,35 @@ export class GitHubClient {
           labels: issue.labels.map((l: any) => (typeof l === "string" ? l : l.name)),
         }));
 
-      return yaml.dump(snapshot, { indent: 2 });
+      let docsContext = "";
+      try {
+        const { data: docs } = await this.octokit.rest.repos.getContent({
+          owner: this.owner,
+          repo: this.repo,
+          path: "docs/features",
+        });
+        
+        if (Array.isArray(docs)) {
+          docsContext = "\n\n[Existing Specifications in docs/features/]\n";
+          for (const doc of docs) {
+            if (doc.type === "file" && doc.name.endsWith(".md")) {
+              const { data: fileData } = await this.octokit.rest.repos.getContent({
+                owner: this.owner,
+                repo: this.repo,
+                path: doc.path,
+              });
+              if (!Array.isArray(fileData) && fileData.type === "file" && fileData.content) {
+                const content = Buffer.from(fileData.content, 'base64').toString("utf-8");
+                docsContext += `\n--- ${doc.name} ---\n${content}\n`;
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+         if (err.status !== 404) console.warn("Could not fetch docs context:", err.message);
+      }
+
+      return yaml.dump(snapshot, { indent: 2 }) + docsContext;
     } catch (error) {
       console.error("Failed to fetch project context:", error);
       return "";
@@ -259,5 +325,52 @@ export class GitHubClient {
       console.error("Failed to calculate total SP:", error);
       throw error;
     }
+  }
+
+  async updateEstimates(title: string, filename?: string, priority?: string): Promise<void> {
+    const path = "docs/estimates.md";
+    let estimates: any[] = [];
+    let sha: string | undefined;
+
+    try {
+      const { data } = await this.octokit.rest.repos.getContent({
+        owner: this.owner,
+        repo: this.repo,
+        path,
+      });
+      if (!Array.isArray(data) && data.type === "file" && data.content) {
+        sha = data.sha;
+        const content = Buffer.from(data.content, "base64").toString("utf-8");
+        const match = content.match(/```json\n([\s\S]*?)\n```/);
+        if (match) {
+          try {
+            estimates = JSON.parse(match[1]);
+          } catch (e) {
+            console.warn("Failed to parse estimates json");
+          }
+        }
+      }
+    } catch (e: any) {
+      if (e.status !== 404) console.warn(`Could not get ${path}:`, e.message);
+    }
+
+    estimates.push({
+      feature: title,
+      file: filename || "",
+      status: "confirmed",
+      priority: priority || "P1",
+      date: new Date().toISOString()
+    });
+
+    const newContent = `# Feature Estimates\n\n\`\`\`json\n${JSON.stringify(estimates, null, 2)}\n\`\`\`\n`;
+
+    await this.octokit.rest.repos.createOrUpdateFileContents({
+      owner: this.owner,
+      repo: this.repo,
+      path,
+      message: `docs: Update estimates for ${title}`,
+      content: Buffer.from(newContent).toString("base64"),
+      sha,
+    });
   }
 }

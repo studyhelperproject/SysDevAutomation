@@ -5,6 +5,7 @@ import { storage } from "./storage.js";
 import { App, AppOptions } from "@slack/bolt";
 import * as dotenv from "dotenv";
 import { fileURLToPath } from 'url';
+import { Buffer } from "buffer";
 
 dotenv.config();
 
@@ -21,6 +22,42 @@ export const githubClient = new GitHubClient(
 export const geminiEngine = new GeminiEngine(getEnv("GEMINI_API_KEY", "dummy"));
 
 const socketMode = process.env.SLACK_SOCKET_MODE === "true";
+
+async function handlePullRequestOpened(payload: any) {
+  try {
+    const pr = payload.pull_request;
+    const repoFullName = payload.repository.full_name;
+    const body = pr.body || "";
+    
+    const match = body.match(/(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i);
+    if (!match) return;
+
+    const issueNum = parseInt(match[1]);
+    const client = new GitHubClient(getEnv("GITHUB_TOKEN"), repoFullName);
+    const issueText = await client.getIssue(issueNum);
+    
+    const slackLinkMatch = issueText.match(/\[Slack Message\]\((https:\/\/[^\/]+\/archives\/([^\/]+)\/p(\d+)(?:\?.*)?)\)/);
+    if (slackLinkMatch) {
+      const permalink = slackLinkMatch[1];
+      const channel = slackLinkMatch[2];
+      const tsRaw = slackLinkMatch[3];
+      const ts = tsRaw.length >= 6 ? tsRaw.slice(0, -6) + "." + tsRaw.slice(-6) : tsRaw;
+      
+      const message = `🤖 *Jules Update*\n仕様に基づき機能実装のPRが作成されました！\n` +
+                      `*PR:* <${pr.html_url}|${pr.title}>\n` +
+                      `内容を確認し、問題なければレビュー・マージをお願いします。`;
+                      
+      await app.client.chat.postMessage({
+        channel,
+        thread_ts: ts,
+        text: message
+      });
+      console.log(`Posted PR notification to Slack thread: ${permalink}`);
+    }
+  } catch (error) {
+    console.error("Failed to handle PR opened event:", error);
+  }
+}
 
 const appOptions: AppOptions = {
   token: getEnv("SLACK_BOT_TOKEN", "xoxb-dummy"),
@@ -41,6 +78,32 @@ const appOptions: AppOptions = {
       handler: (req, res) => {
         res.writeHead(200);
         res.end("SysDevAutomation service is running. Slack events are accepted at /");
+      },
+    },
+    {
+      path: "/github/webhook",
+      method: ["POST"],
+      handler: (req: any, res: any) => {
+        let body = '';
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString();
+        });
+        req.on('end', async () => {
+          try {
+            if (body) {
+              const payload = JSON.parse(body);
+              if (payload.action === 'opened' && payload.pull_request) {
+                await handlePullRequestOpened(payload);
+              }
+            }
+            res.writeHead(200);
+            res.end("OK");
+          } catch (e) {
+            console.error("Error parsing webhook:", e);
+            res.writeHead(500);
+            res.end("Error");
+          }
+        });
       },
     },
   ],
@@ -65,6 +128,7 @@ export function formatSlackReply(result: GeminiAnalysisResult, issueUrl: string)
   let actionText = "created";
   if (result.action === "update") actionText = "updated";
   if (result.action === "comment") actionText = "commented on";
+  if (result.action === "UPDATE_DOCS") actionText = "created for development";
 
   let message = `GitHub Issue ${actionText}: ${issueUrl}\nCategory: ${result.category}`;
 
@@ -174,6 +238,25 @@ async function handleSlackMessage({ text, ts, thread_ts, channel, client, logger
       const comment = await channelGitHubClient.addComment(result.issue_number, result.description);
       issue = { html_url: comment.html_url }; // Minimal issue-like object for formatSlackReply
       console.log(`GitHub Comment Added to: #${result.issue_number}`);
+    } else if (result.action === "UPDATE_DOCS") {
+      if (result.feature_doc_filename && result.feature_doc_markdown) {
+        await channelGitHubClient.upsertFile(
+          result.feature_doc_filename,
+          result.feature_doc_markdown,
+          `docs: Update specification for ${result.title}`
+        );
+        console.log(`GitHub File Upserted: ${result.feature_doc_filename}`);
+      }
+      
+      try {
+        await channelGitHubClient.updateEstimates(result.title, result.feature_doc_filename, result.priority);
+        console.log(`Updated docs/estimates.md for ${result.title}`);
+      } catch (e) {
+        console.error("Failed to update estimates:", e);
+      }
+
+      issue = await channelGitHubClient.createIssue(result, permalink);
+      console.log("GitHub Issue Created for UPDATE_DOCS:", issue.html_url);
     } else {
       issue = await channelGitHubClient.createIssue(result, permalink);
       console.log("GitHub Issue Created:", issue.html_url);
